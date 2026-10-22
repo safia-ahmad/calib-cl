@@ -1,11 +1,12 @@
-# calcl: starter code for "Calibration under gradual, boundary-free shift in continual medical image classification"
+# calcl: starter code for "Is forgetting miscalibration or lost discrimination?" (PCam, RUMC -> UMCU)
 
 What is tested and what is not:
 
 | File | Status |
 |---|---|
-| `calcl/metrics.py` | Tested (`tests/test_metrics.py`): accuracy, NLL, Brier, AUROC, binned ECE (equal-width and equal-mass), class-1 ECE, signed confidence gap, temperature fitting, cross-fitted temperature-oracle NLL decomposition |
+| `calcl/metrics.py` | Tested (`tests/test_metrics.py`): accuracy, NLL, Brier, AUROC, binned ECE (equal-width and equal-mass), class-1 ECE, signed confidence gap, temperature fitting, recoverable NLL under cross-fitted temperature scaling (secondary measure; not a discrimination measure) |
 | `calcl/stream.py` | Tested (`tests/test_stream.py`): alpha schedules (linear, sigmoid, step, none), class-stratified mixture windows, no reuse across windows, reproducibility |
+| `calcl/corp.py` | Tested (`tests/test_corp.py`): CORP Brier decomposition (MCB, DSC, UNC), in-sample and slide-grouped cross-fitted |
 | `calcl/alarms.py` | Tested (`tests/test_alarms.py`): equal-false-alarm thresholds from no-drift controls, persistent onset, censored lead time |
 | `calcl/run_stream_ILLUSTRATIVE.py` | **Untested blueprint** (written without PyTorch/GPU). Fine-tuning, reservoir replay, fixed-interval online EWC, test-then-train loop |
 
