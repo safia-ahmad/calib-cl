@@ -44,7 +44,7 @@ def score(z, y, groups, T0):
 def main(a):
     t_start = time.time()
     seed_everything(a.seed)
-    tag = f"_colour{a.colour:g}" if a.colour > 0 else ""
+    tag = "" if a.colour == 0.5 else f"_colour{a.colour:g}"  # 0.5 is the standard recipe
     run = os.path.join(a.out, f"{a.setting}_{a.model}_seed{a.seed}{tag}")
     os.makedirs(run, exist_ok=True)
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -117,7 +117,8 @@ if __name__ == "__main__":
     p.add_argument("--workers", type=int, default=2)
     p.add_argument("--n_eval", type=int, default=2000)
     p.add_argument("--max_train", type=int, default=0, help="cap on training patches (0 = all); for quick tests")
-    p.add_argument("--colour", type=float, default=0.0,
-                   help="colour-jitter strength for training patches (0 = off, 1 = strong)")
+    p.add_argument("--colour", type=float, default=0.5,
+                   help="colour-jitter strength for training patches (0 = off, 1 = strong); "
+                        "0.5 chosen on the seed-0 pilot (Day 9)")
     p.add_argument("--no_pretrained", action="store_true", help="for offline tests only")
     main(p.parse_args())
