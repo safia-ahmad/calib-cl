@@ -21,3 +21,7 @@
 - calcl/data.py added; tests 21 passed; loader speed: [X] patches/s
 - Colour shift (mean RGB): [paste table]
 - Next: Day 6, slide splits (make_splits)
+
+## Day 6–10: 
+The no-jitter model learned a colour shortcut on UMCU (predicted tumour 76% vs 42% true; accuracy on normal patches 0.32).
+With colour jitter 0.5: S AUROC 0.961, G AUROC 0.910, T0 = 1.76, G4 gap 0.046 PASS. Decision: colour 0.5 is the standard recipe for all source models (pilot decision, seed 0, not reported).
