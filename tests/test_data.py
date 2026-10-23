@@ -65,3 +65,16 @@ def test_slide_helpers(tiny):
     assert set(man2.wsi.iloc[idx]) == {one}
     assert (man2.label.iloc[indices_for(man2, st.wsi, label=1)] == 1).all()
     assert mean_colour(X2, np.arange(10)).shape == (3,)
+
+
+def test_colour_jitter_off_is_identity_and_on_stays_uint8():
+    import random
+    import numpy as np
+    from calcl.data import colour_jitter
+    rng = np.random.default_rng(0)
+    img = rng.integers(0, 256, (96, 96, 3)).astype(np.uint8)
+    assert colour_jitter(img, 0.0) is img
+    random.seed(1)
+    out = colour_jitter(img, 1.0)
+    assert out.shape == img.shape and out.dtype == np.uint8
+    assert not np.array_equal(out, img)

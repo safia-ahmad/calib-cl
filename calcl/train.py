@@ -21,10 +21,11 @@ def seed_everything(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
 
 
-def make_loader(X, labels, idx, train: bool, batch: int = 128, workers: int = 2, seed: int = 0):
+def make_loader(X, labels, idx, train: bool, batch: int = 128, workers: int = 2, seed: int = 0,
+                colour: float = 0.0):
     g = torch.Generator()
     g.manual_seed(seed)
-    return DataLoader(PatchDataset(X, labels, idx, train=train), batch_size=batch,
+    return DataLoader(PatchDataset(X, labels, idx, train=train, colour=colour), batch_size=batch,
                       shuffle=train, num_workers=workers, generator=g,
                       pin_memory=torch.cuda.is_available(), drop_last=False)
 

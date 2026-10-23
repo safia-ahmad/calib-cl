@@ -44,7 +44,8 @@ def score(z, y, groups, T0):
 def main(a):
     t_start = time.time()
     seed_everything(a.seed)
-    run = os.path.join(a.out, f"{a.setting}_{a.model}_seed{a.seed}")
+    tag = f"_colour{a.colour:g}" if a.colour > 0 else ""
+    run = os.path.join(a.out, f"{a.setting}_{a.model}_seed{a.seed}{tag}")
     os.makedirs(run, exist_ok=True)
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("device:", dev, "| run folder:", run)
@@ -71,7 +72,8 @@ def main(a):
     y = man.label.to_numpy()
     model = make_model(a.model, pretrained=not a.no_pretrained)
     res = train_source(model,
-                       make_loader(X, y, tr, train=True, batch=a.batch, workers=a.workers, seed=a.seed),
+                       make_loader(X, y, tr, train=True, batch=a.batch, workers=a.workers, seed=a.seed,
+                                   colour=a.colour),
                        make_loader(X, y, es, train=False, batch=256, workers=a.workers),
                        dev, lr=a.lr, max_epochs=a.epochs, patience=a.patience)
     torch.save(model.state_dict(), os.path.join(run, "source.pt"))
@@ -80,7 +82,7 @@ def main(a):
     T0 = fit_temperature(z_vt, y_vt)
     print(f"temperature T0 = {T0:.3f}")
 
-    out = {"setting": a.setting, "seed": a.seed, "model": a.model, "T0": T0, **res}
+    out = {"setting": a.setting, "seed": a.seed, "model": a.model, "colour": a.colour, "T0": T0, **res}
     for name, idx in [("S_source_test", S), ("G_target_test", G)]:
         z, yy = predict(model, make_loader(X, y, idx, train=False, batch=256, workers=a.workers), dev)
         out[name] = score(z, yy, man.wsi.to_numpy()[idx], T0)
@@ -115,5 +117,7 @@ if __name__ == "__main__":
     p.add_argument("--workers", type=int, default=2)
     p.add_argument("--n_eval", type=int, default=2000)
     p.add_argument("--max_train", type=int, default=0, help="cap on training patches (0 = all); for quick tests")
+    p.add_argument("--colour", type=float, default=0.0,
+                   help="colour-jitter strength for training patches (0 = off, 1 = strong)")
     p.add_argument("--no_pretrained", action="store_true", help="for offline tests only")
     main(p.parse_args())

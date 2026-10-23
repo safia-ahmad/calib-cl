@@ -68,14 +68,34 @@ def augment(img: np.ndarray) -> np.ndarray:
     return img
 
 
-class PatchDataset:
-    """Patches selected by row index. Returns (3x96x96 float32, int label)."""
+def colour_jitter(img: np.ndarray, s: float) -> np.ndarray:
+    """Random stain-like colour change of strength s (0 = none, 1 = strong):
+    per-channel gain (+-15% * s), brightness (+-10% * s), contrast and
+    saturation (+-20% * s). uint8 in, uint8 out. Uses `random`, like augment."""
+    if s <= 0:
+        return img
+    x = img.astype(np.float32)
+    gain = np.array([1 + random.uniform(-0.15, 0.15) * s for _ in range(3)], dtype=np.float32)
+    x = x * gain
+    x = x + random.uniform(-0.10, 0.10) * s * 255
+    m = x.mean()
+    x = m + (x - m) * (1 + random.uniform(-0.2, 0.2) * s)
+    grey = x.mean(axis=2, keepdims=True)
+    x = grey + (x - grey) * (1 + random.uniform(-0.2, 0.2) * s)
+    return np.clip(x, 0, 255).astype(np.uint8)
 
-    def __init__(self, X: np.ndarray, labels: np.ndarray, indices, train: bool = False):
+
+class PatchDataset:
+    """Patches selected by row index. Returns (3x96x96 float32, int label).
+    colour > 0 adds colour_jitter to training patches (off by default)."""
+
+    def __init__(self, X: np.ndarray, labels: np.ndarray, indices, train: bool = False,
+                 colour: float = 0.0):
         self.X = X
         self.labels = np.asarray(labels)
         self.indices = np.asarray(indices, dtype=np.int64)
         self.train = train
+        self.colour = colour
 
     def __len__(self) -> int:
         return len(self.indices)
@@ -84,7 +104,7 @@ class PatchDataset:
         j = self.indices[i]
         img = self.X[j]
         if self.train:
-            img = augment(img)
+            img = colour_jitter(augment(img), self.colour)
         return normalise(img), int(self.labels[j])
 
 
