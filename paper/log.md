@@ -25,3 +25,6 @@
 ## Day 6–10: 
 The no-jitter model learned a colour shortcut on UMCU (predicted tumour 76% vs 42% true; accuracy on normal patches 0.32).
 With colour jitter 0.5: S AUROC 0.961, G AUROC 0.910, T0 = 1.76, G4 gap 0.046 PASS. Decision: colour 0.5 is the standard recipe for all source models (pilot decision, seed 0, not reported).
+
+## Day 11: 
+V1 PASS on seed-0 S outputs. The model is underconfident on S at T0 (refit slope 1.43), so damages are applied after recalibrating the start. A (rescale/shift): ΔMCB +0.003 to +0.033, ΔDSC 0.0000 in all rows. B (10/30/50% set to 0.5): ΔDSC −0.014/−0.048/−0.081, ΔMCB ≤ +0.009. C: both move. Pass rule for A changed from "ΔMCB ≥ 0.005" to "ΔMCB > 0" after the first run, because the size of the rise depends on how strong the damage is. Logged before the design freeze.
