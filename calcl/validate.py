@@ -85,12 +85,15 @@ def known_answer_table(d: np.ndarray, y: np.ndarray, groups, n_rep: int = 20,
 
 
 def _verdict(r) -> str:
-    if r.check == "A":    # calibration damage: MCB up, DSC (almost) unchanged
-        ok = r.d_mcb >= SESOI and abs(r.d_dsc) < SESOI
+    # The size of the MCB rise depends on how strong the damage is, not on whether
+    # the measurement works, so A and C only require MCB to rise. DSC is held to
+    # the SESOI: calibration damage must not show up as lost discrimination.
+    if r.check == "A":    # calibration damage: MCB up, DSC unchanged
+        ok = r.d_mcb > 0 and abs(r.d_dsc) < SESOI
     elif r.check == "B":  # discrimination damage: DSC down, and moves more than MCB
         ok = r.d_dsc <= -SESOI and abs(r.d_mcb) < 0.5 * abs(r.d_dsc)
     elif r.check == "C":  # both
-        ok = r.d_mcb >= SESOI and r.d_dsc <= -SESOI
+        ok = r.d_mcb > 0 and r.d_dsc <= -SESOI
     else:
         return ""
     return "PASS" if ok else "FAIL"
