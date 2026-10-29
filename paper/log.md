@@ -28,3 +28,6 @@ With colour jitter 0.5: S AUROC 0.961, G AUROC 0.910, T0 = 1.76, G4 gap 0.046 PA
 
 ## Day 11: 
 V1 PASS on seed-0 S outputs. The model is underconfident on S at T0 (refit slope 1.43), so damages are applied after recalibrating the start. A (rescale/shift): ΔMCB +0.003 to +0.033, ΔDSC 0.0000 in all rows. B (10/30/50% set to 0.5): ΔDSC −0.014/−0.048/−0.081, ΔMCB ≤ +0.009. C: both move. Pass rule for A changed from "ΔMCB ≥ 0.005" to "ΔMCB > 0" after the first run, because the size of the rise depends on how strong the damage is. Logged before the design freeze.
+
+## Day 15: 
+Stream supply check (all settings, seeds 0–5). 1,000-patch windows don’t fit: the pcam_rev no-drift twin runs out of source patches in every seed, and pcam_fwd at 50% tumour runs out in seeds 1, 3, 5. Applied the pre-registered G3 fallback: T = 10 windows × 500 patches, 50% tumour. Feasible everywhere (tightest: pcam_rev seed 4, 2,605 tumour patches available for 2,500 needed). Streams built for 2 settings × 6 seeds.
