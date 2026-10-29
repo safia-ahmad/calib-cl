@@ -37,10 +37,24 @@ def _blank(p, frac, rng):
     return p
 
 
+def platt_centre(d: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, float, float]:
+    """Refit d -> a*d + b on these labels (logistic regression), so the starting
+    point is calibrated. Only for this check: a known answer needs a calibrated
+    start, otherwise 'making it sharper' can *improve* an underconfident model.
+    The ranking (and so DSC) is unchanged. a > 1 means the input was underconfident."""
+    from sklearn.linear_model import LogisticRegression
+    lr = LogisticRegression(C=1e6).fit(d[:, None], y)
+    a, b = float(lr.coef_[0, 0]), float(lr.intercept_[0])
+    return a * d + b, a, b
+
+
 def known_answer_table(d: np.ndarray, y: np.ndarray, groups, n_rep: int = 20,
-                       seed: int = 0) -> pd.DataFrame:
+                       seed: int = 0, centre: bool = True) -> pd.DataFrame:
     """d: tumour logit after T0. Returns one row per damage with the change in
-    MCB and DSC versus the undamaged outputs (random damages averaged over n_rep)."""
+    MCB and DSC versus the undamaged outputs (random damages averaged over n_rep).
+    centre=True first makes the outputs calibrated (platt_centre)."""
+    if centre:
+        d = platt_centre(d, y)[0]
     base = corp_crossfit(expit(d), y, groups)
     rng = np.random.default_rng(seed)
     rows = []

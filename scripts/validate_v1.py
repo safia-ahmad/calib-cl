@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from calcl.validate import binary_logit, known_answer_table  # noqa: E402
+from calcl.validate import binary_logit, known_answer_table, platt_centre  # noqa: E402
 
 
 def main(a):
@@ -23,10 +23,14 @@ def main(a):
     d = np.load(os.path.join(a.run, "logits_S_source_test.npz"))
     man = pd.read_csv(os.path.join(a.data, "pcam_compact_manifest.csv"), usecols=["wsi"])
     groups = man.wsi.to_numpy()[d["idx"]]
-    tab = known_answer_table(binary_logit(d["z"], s["T0"]), d["y"], groups, n_rep=a.reps)
+    logit = binary_logit(d["z"], s["T0"])
+    _, slope, icpt = platt_centre(logit, d["y"])
+    tab = known_answer_table(logit, d["y"], groups, n_rep=a.reps)
     tab.to_csv(os.path.join(a.run, "v1_table.csv"), index=False)
     pd.set_option("display.width", 120)
-    print(f"run: {a.run}\nT0 = {s['T0']:.3f}, {len(d['y'])} patches, {len(set(groups))} slides\n")
+    print(f"run: {a.run}\nT0 = {s['T0']:.3f}, {len(d['y'])} patches, {len(set(groups))} slides")
+    print(f"calibrating start on S: logit -> {slope:.3f} * logit + {icpt:+.3f} "
+          f"({'under' if slope > 1 else 'over'}confident at T0)\n")
     print(tab.to_string(index=False, float_format=lambda v: f"{v:.4f}"))
     verdicts = tab[tab.check != "-"]["pass"]
     print(f"\nV1: {'PASS' if (verdicts == 'PASS').all() else 'FAIL'} "
