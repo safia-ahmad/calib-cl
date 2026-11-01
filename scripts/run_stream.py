@@ -32,6 +32,11 @@ from calcl.stream_train import Reservoir, score_set, train_window  # noqa: E402
 from calcl.train import make_loader, predict, seed_everything  # noqa: E402
 
 
+def stream_dir(a, run_dir, strategy, kind):
+    name = f"stream_{strategy}_{kind}" + (f"_{a.tag}" if a.tag else "")
+    return os.path.join(a.out, os.path.basename(run_dir), name) if a.out else os.path.join(run_dir, name)
+
+
 def run_one(a, X, man, run_dir, strategy, kind, dev):
     s = json.load(open(os.path.join(run_dir, "summary.json")))
     T0 = s["T0"]
@@ -51,8 +56,7 @@ def run_one(a, X, man, run_dir, strategy, kind, dev):
     opt = torch.optim.SGD(model.parameters(), lr=a.lr, momentum=0.9, weight_decay=5e-4)
     buffer = Reservoir(a.buffer, rng) if strategy == "replay" else None
 
-    out_dir = os.path.join(a.out or run_dir, os.path.basename(run_dir), f"stream_{strategy}_{kind}") \
-        if a.out else os.path.join(run_dir, f"stream_{strategy}_{kind}")
+    out_dir = stream_dir(a, run_dir, strategy, kind)
     os.makedirs(out_dir, exist_ok=True)
     rows, logits = [], {}
     T = len(windows)
@@ -95,6 +99,9 @@ def main(a):
         for kind in a.kinds.split(","):
             if strategy == "frozen" and kind == "nodrift":
                 continue  # frozen never trains, so the twin would be identical
+            if os.path.exists(os.path.join(stream_dir(a, run_dir, strategy, kind), "metrics.csv")) and not a.force:
+                print(f"=== {a.setting} {a.model} seed {a.seed} | {strategy} on {kind}: already done, skipping")
+                continue
             print(f"=== {a.setting} {a.model} seed {a.seed} | {strategy} on {kind} stream ===", flush=True)
             meta = run_one(a, X, man, run_dir, strategy, kind, dev)
             print(f"  done in {meta['minutes']:.1f} min" +
@@ -110,6 +117,8 @@ if __name__ == "__main__":
     p.add_argument("--runs", default="/kaggle/working/runs")
     p.add_argument("--out", default="", help="where to write results (default: inside the run folder; "
                    "needed when the runs folder is read-only, e.g. a Kaggle input)")
+    p.add_argument("--tag", default="", help="suffix for the result folder, e.g. lr0.003 for a pilot check")
+    p.add_argument("--force", action="store_true", help="redo runs that already have results")
     p.add_argument("--streams", default="/kaggle/working/streams")
     p.add_argument("--strategies", default="frozen,ft,replay")
     p.add_argument("--kinds", default="gradual,nodrift")

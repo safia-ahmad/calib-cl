@@ -47,6 +47,16 @@ class Reservoir:
         return self.rng.choice(np.array(self.items), size=min(k, len(self.items)), replace=False)
 
 
+_SCALERS = {}
+
+
+def _scaler(opt):
+    """One mixed-precision GradScaler per optimiser (kept across windows)."""
+    if id(opt) not in _SCALERS:
+        _SCALERS[id(opt)] = torch.amp.GradScaler("cuda")
+    return _SCALERS[id(opt)]
+
+
 def make_batch(X, labels, idx, colour: float):
     xs = [normalise(colour_jitter(augment(X[j]), colour)) for j in idx]
     return torch.from_numpy(np.stack(xs)), torch.from_numpy(np.asarray(labels)[idx].astype(np.int64))
@@ -65,9 +75,17 @@ def train_window(model, opt, X, labels, window, device, rng, batch: int = 64,
         x, y = make_batch(X, labels, idx, colour)
         x, y = x.to(device), y.to(device)
         opt.zero_grad(set_to_none=True)
-        loss = F.cross_entropy(model(x), y)
-        loss.backward()
-        opt.step()
+        amp = device.type == "cuda"
+        with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp):
+            loss = F.cross_entropy(model(x), y)
+        if amp:
+            scaler = _scaler(opt)
+            scaler.scale(loss).backward()
+            scaler.step(opt)
+            scaler.update()
+        else:
+            loss.backward()
+            opt.step()
         tot += loss.item() * len(y)
         n += len(y)
         if buffer is not None:
