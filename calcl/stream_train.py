@@ -47,23 +47,13 @@ class Reservoir:
         return self.rng.choice(np.array(self.items), size=min(k, len(self.items)), replace=False)
 
 
-_SCALERS = {}
-
-
-def _scaler(opt):
-    """One mixed-precision GradScaler per optimiser (kept across windows)."""
-    if id(opt) not in _SCALERS:
-        _SCALERS[id(opt)] = torch.amp.GradScaler("cuda")
-    return _SCALERS[id(opt)]
-
-
 def make_batch(X, labels, idx, colour: float):
     xs = [normalise(colour_jitter(augment(X[j]), colour)) for j in idx]
     return torch.from_numpy(np.stack(xs)), torch.from_numpy(np.asarray(labels)[idx].astype(np.int64))
 
 
 def train_window(model, opt, X, labels, window, device, rng, batch: int = 64,
-                 buffer: Reservoir | None = None, colour: float = 0.5) -> float:
+                 buffer: Reservoir | None = None, colour: float = 0.5, scaler=None, stats: dict | None = None) -> float:
     """One pass over the window. With a buffer: each step adds an equal number of
     replayed patches, then the step's new patches enter the reservoir."""
     model.train()
@@ -79,13 +69,20 @@ def train_window(model, opt, X, labels, window, device, rng, batch: int = 64,
         with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp):
             loss = F.cross_entropy(model(x), y)
         if amp:
-            scaler = _scaler(opt)
+            # one GradScaler per run, created by the caller and kept across its windows
+            # (fix 8 Nov: a process-wide scaler keyed by id(opt) could leak between runs)
+            assert scaler is not None, "pass the run's GradScaler"
             scaler.scale(loss).backward()
+            s0 = scaler.get_scale()
             scaler.step(opt)
             scaler.update()
+            if stats is not None and scaler.get_scale() < s0:  # overflow: this step was skipped
+                stats["skipped_steps"] = stats.get("skipped_steps", 0) + 1
         else:
             loss.backward()
             opt.step()
+        if stats is not None:
+            stats["steps"] = stats.get("steps", 0) + 1
         tot += loss.item() * len(y)
         n += len(y)
         if buffer is not None:

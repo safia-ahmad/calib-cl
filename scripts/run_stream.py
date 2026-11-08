@@ -55,6 +55,8 @@ def run_one(a, X, man, run_dir, strategy, kind, dev):
     model.to(dev)
     opt = torch.optim.SGD(model.parameters(), lr=a.lr, momentum=0.9, weight_decay=5e-4)
     buffer = Reservoir(a.buffer, rng) if strategy == "replay" else None
+    scaler = torch.amp.GradScaler("cuda") if dev.type == "cuda" else None  # fresh for every run
+    stats = {"steps": 0, "skipped_steps": 0}
 
     out_dir = stream_dir(a, run_dir, strategy, kind)
     os.makedirs(out_dir, exist_ok=True)
@@ -74,7 +76,7 @@ def run_one(a, X, man, run_dir, strategy, kind, dev):
                 logits[f"{name}_c{c}"] = z.astype(np.float16)
         if c < T and strategy != "frozen":
             loss = train_window(model, opt, X, y_all, windows[c], dev, rng, batch=a.batch,
-                                buffer=buffer, colour=a.colour)
+                                buffer=buffer, colour=a.colour, scaler=scaler, stats=stats)
             rows[-1]["train_loss_next"] = loss
         last = {r_["set"]: r_ for r_ in rows if r_["checkpoint"] == c}
         print(f"  c={c:2d} | S brier {last['S']['brier']:.4f} mcb {last['S']['mcb']:.4f} "
@@ -85,7 +87,7 @@ def run_one(a, X, man, run_dir, strategy, kind, dev):
                         **{f"idx_{k}": v for k, v in sets.items()}, **logits)
     meta = {"T0": T0, "lr": a.lr, "batch": a.batch, "buffer": a.buffer if buffer else 0,
             "colour": a.colour, "minutes": (time.time() - t_start) / 60,
-            "buffer_items": len(buffer.items) if buffer else 0}
+            "buffer_items": len(buffer.items) if buffer else 0, **stats}
     json.dump(meta, open(os.path.join(out_dir, "meta.json"), "w"), indent=2)
     return meta
 
