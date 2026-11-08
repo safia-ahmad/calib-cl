@@ -16,8 +16,9 @@ from calcl import analysis as A  # noqa: E402
 
 
 def main(a):
+    A.SUFFIX = a.tag
     man = pd.read_csv(os.path.join(a.data, "pcam_compact_manifest.csv"), usecols=["wsi", "label"])
-    res_dir = os.path.join(a.out, "analysis")
+    res_dir = os.path.join(a.out, "analysis" + a.tag)
     os.makedirs(res_dir, exist_ok=True)
     pd.set_option("display.width", 200)
     fl = lambda v: f"{v:.4f}"  # noqa: E731
@@ -67,4 +68,5 @@ if __name__ == "__main__":
     p.add_argument("--data", default="/content/data")
     p.add_argument("--models", required=True)
     p.add_argument("--out", required=True)
+    p.add_argument("--tag", default="", help='analyse the stream runs with this folder suffix, e.g. "_v2"')
     main(p.parse_args())

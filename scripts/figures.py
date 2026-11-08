@@ -35,7 +35,7 @@ def save(fig, d, name):
 def curves(out, setting, model, run, col):
     ys = []
     for seed in A.SEEDS:
-        m = pd.read_csv(os.path.join(A.run_dir(out, setting, model, seed), f"stream_{run}", "metrics.csv"))
+        m = pd.read_csv(os.path.join(A.run_dir(out, setting, model, seed), f"stream_{run}{A.SUFFIX}", "metrics.csv"))
         s = m[m.set == "S"].set_index("checkpoint").sort_index()[col]
         ys.append(s.values - s.values[0])
     ys = np.array(ys)
@@ -74,8 +74,8 @@ def fig_drift_curves(out, d):
                 diffs = []
                 for seed in A.SEEDS:
                     rd = A.run_dir(out, *cell, seed)
-                    g = pd.read_csv(os.path.join(rd, f"stream_{strat}_gradual", "metrics.csv"))
-                    n = pd.read_csv(os.path.join(rd, f"stream_{strat}_nodrift", "metrics.csv"))
+                    g = pd.read_csv(os.path.join(rd, f"stream_{strat}_gradual{A.SUFFIX}", "metrics.csv"))
+                    n = pd.read_csv(os.path.join(rd, f"stream_{strat}_nodrift{A.SUFFIX}", "metrics.csv"))
                     g = g[g.set == "S"].set_index("checkpoint").sort_index()[col]
                     n = n[n.set == "S"].set_index("checkpoint").sort_index()[col]
                     diffs.append(sign * ((g - g.iloc[0]) - (n - n.iloc[0])).values)
@@ -185,11 +185,12 @@ def exploratory(dt, t4, d):
 
 
 def main(a):
-    d = os.path.join(a.out, "analysis", "figures")
+    A.SUFFIX = a.tag
+    d = os.path.join(a.out, "analysis" + a.tag, "figures")
     os.makedirs(d, exist_ok=True)
     dt = A.drift_table(a.out)
     _, h3 = A.hypotheses(dt)
-    t4 = pd.read_csv(os.path.join(a.out, "analysis", "H4_per_seed.csv"))
+    t4 = pd.read_csv(os.path.join(a.out, "analysis" + a.tag, "H4_per_seed.csv"))
     fig_curves(a.out, d)
     fig_drift_curves(a.out, d)
     fig_decomposition(dt, d)
@@ -203,4 +204,5 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--models", required=True)
     p.add_argument("--out", required=True)
+    p.add_argument("--tag", default="")
     main(p.parse_args())

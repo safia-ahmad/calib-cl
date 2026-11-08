@@ -92,7 +92,16 @@ def run_one(a, X, man, run_dir, strategy, kind, dev):
     return meta
 
 
+def make_deterministic():
+    """Same seed, same code -> same numbers (added 8 Nov after the E-6 test-retest check)."""
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.use_deterministic_algorithms(True, warn_only=True)
+
+
 def main(a):
+    make_deterministic()
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     X, man = load_compact(os.path.join(a.data, "pcam_compact.h5"),
                           os.path.join(a.data, "pcam_compact_manifest.csv"))
