@@ -60,7 +60,40 @@ def fig_curves(out, d):
                 a.set_xlabel("Windows trained")
     ax[0, 0].legend(fontsize=8, loc="upper left")
     fig.suptitle("Source-domain (S) miscalibration and discrimination over the stream (mean ± SD over 5 seeds)")
-    save(fig, d, "fig1_mcb_dsc_curves")
+    save(fig, d, "figS1_raw_mcb_dsc_curves")
+
+
+def fig_drift_curves(out, d):
+    """Drift-attributable change (gradual minus its no-drift twin, per seed) over the stream."""
+    fig, ax = plt.subplots(2, 4, figsize=(17, 6.5), sharex=True)
+    for j, cell in enumerate(A.CELLS):
+        for i, (col, sign, lab) in enumerate([("mcb", 1, "ΔMCB on S (drift − twin)"),
+                                               ("dsc", -1, "DSC lost on S (drift − twin)")]):
+            a = ax[i, j]
+            for strat, c, name in [("ft", "#c2410c", "Fine-tuning"), ("replay", "#1d4ed8", "Replay")]:
+                diffs = []
+                for seed in A.SEEDS:
+                    rd = A.run_dir(out, *cell, seed)
+                    g = pd.read_csv(os.path.join(rd, f"stream_{strat}_gradual", "metrics.csv"))
+                    n = pd.read_csv(os.path.join(rd, f"stream_{strat}_nodrift", "metrics.csv"))
+                    g = g[g.set == "S"].set_index("checkpoint").sort_index()[col]
+                    n = n[n.set == "S"].set_index("checkpoint").sort_index()[col]
+                    diffs.append(sign * ((g - g.iloc[0]) - (n - n.iloc[0])).values)
+                diffs = np.array(diffs)
+                m, se = diffs.mean(0), diffs.std(0, ddof=1) / np.sqrt(len(diffs))
+                x = np.arange(diffs.shape[1])
+                a.plot(x, m, color=c, lw=1.8, label=name)
+                a.fill_between(x, m - se, m + se, color=c, alpha=0.15)
+            a.axhline(0, color="grey", lw=0.8)
+            if i == 0:
+                a.set_title(NAMES[cell], fontsize=10)
+            if j == 0:
+                a.set_ylabel(lab)
+            if i == 1:
+                a.set_xlabel("Windows trained")
+    ax[0, 0].legend(fontsize=8, loc="upper left")
+    fig.suptitle("Drift-attributable miscalibration (top) and lost discrimination (bottom) on S (mean ± SE over 5 seeds)")
+    save(fig, d, "fig1_drift_curves")
 
 
 def fig_decomposition(dt, d):
@@ -93,13 +126,14 @@ def fig_forest(h3, d):
             ax.plot([lo, hi], [i, i], color="k", lw=1.5)
             ax.plot(r.rho_FT, i, "o", color="#c2410c" if i == 0 else "k", ms=7)
         else:
-            ax.text(0.25, i, "no drift-attributable forgetting", va="center", ha="center", fontsize=8, color="grey")
+            ax.text(1.1, i, "no drift-attributable forgetting", va="center", ha="center", fontsize=8, color="grey")
         ax.text(-1.05, i, name, va="center", ha="right", fontsize=9)
     ax.axvline(0.25, color="#1d4ed8", ls="--", lw=1)
-    ax.text(0.27, len(h3) - 0.55, "H1 threshold 0.25", color="#1d4ed8", fontsize=8)
+    ax.text(0.28, -0.35, "H1 threshold 0.25", color="#1d4ed8", fontsize=8, va="center")
     ax.set_xlim(-1, 2)
+    ax.set_ylim(len(h3) - 0.5, -0.6)
     ax.set_yticks([])
-    ax.invert_yaxis()
+    ax.set_title("Share of drift-caused forgetting that is miscalibration", fontsize=10)
     ax.set_xlabel("Calibration share ρ under fine-tuning (95% bootstrap CI over seeds, clipped to [−1, 2])")
     save(fig, d, "fig3_rho_forest")
 
@@ -157,6 +191,7 @@ def main(a):
     _, h3 = A.hypotheses(dt)
     t4 = pd.read_csv(os.path.join(a.out, "analysis", "H4_per_seed.csv"))
     fig_curves(a.out, d)
+    fig_drift_curves(a.out, d)
     fig_decomposition(dt, d)
     fig_forest(h3, d)
     fig_h4(t4, d)
