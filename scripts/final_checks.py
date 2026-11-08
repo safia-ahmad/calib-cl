@@ -91,7 +91,7 @@ def c2_hospitals(man):
     sl = man.groupby("wsi").agg(hospital=("hospital", "first")).reset_index()
     rows = []
     for w, h in zip(sl.wsi, sl.hospital):
-        m = re.match(r"(normal|tumou?r)_(\d+)", str(w))
+        m = re.search(r"(normal|tumou?r)_(\d+)", str(w))
         if not m:
             continue
         n = int(m.group(2))
@@ -101,6 +101,7 @@ def c2_hospitals(man):
                          "patches": int((man.wsi == w).sum())})
     t = pd.DataFrame(rows)
     print("\n=== C2 Slides whose manifest hospital differs from the slide-number rule ===")
+    print(f"slides parsed: {sum(bool(re.search(r'(normal|tumou?r)_\d+', str(w))) for w in sl.wsi)} of {len(sl)}")
     print("none" if t.empty else t.to_string(index=False))
     print(sl.hospital.value_counts().to_string())
     return t
