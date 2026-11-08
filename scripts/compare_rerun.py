@@ -33,7 +33,7 @@ def components(out, tag):
 
 
 def main(a):
-    orig, new = components(a.out, ""), components(a.out, "_rerun")
+    orig, new = components(a.out, ""), components(a.out, a.tag)
     m = orig.merge(new, on=["seed", "strategy"], suffixes=("_orig", "_rerun"))
     pd.set_option("display.width", 200)
     print("Per seed (original vs rerun after the scaler fix):")
@@ -51,16 +51,18 @@ def main(a):
     skipped = []
     for seed in A.SEEDS:
         for name in ["ft_gradual", "ft_nodrift", "replay_gradual", "replay_nodrift"]:
-            p = os.path.join(A.run_dir(a.out, SETTING, MODEL, seed), f"stream_{name}_rerun", "meta.json")
+            p = os.path.join(A.run_dir(a.out, SETTING, MODEL, seed), f"stream_{name}{a.tag}", "meta.json")
             meta = json.load(open(p))
-            skipped.append({"seed": seed, "run": name, "steps": meta.get("steps"),
+            skipped.append({"seed": seed, "run": name, "lr": meta.get("lr"), "steps": meta.get("steps"),
                             "skipped_steps": meta.get("skipped_steps")})
     print("\nOptimizer steps in the rerun (skipped = overflow steps the scaler dropped):")
     print(pd.DataFrame(skipped).to_string(index=False))
-    m.to_csv(os.path.join(a.out, "analysis", "E6_rerun_comparison.csv"), index=False)
+    os.makedirs(os.path.join(a.out, "analysis"), exist_ok=True)
+    m.to_csv(os.path.join(a.out, "analysis", f"E6_comparison{a.tag}.csv"), index=False)
 
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--out", required=True)
+    p.add_argument("--tag", default="_rerun", help="suffix of the rerun folders to compare with the originals")
     main(p.parse_args())

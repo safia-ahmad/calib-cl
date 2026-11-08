@@ -43,7 +43,7 @@ def test_run_stream_end_to_end(tmp_path):
     np.savez(streams / "pcam_fwd_seed0.npz", **st)
     r = subprocess.run([py, os.path.join(ROOT, "scripts", "run_stream.py"), "--data", str(data),
                         "--runs", str(runs), "--streams", str(streams), "--workers", "0",
-                        "--n_buffer", "40", "--buffer", "20", "--batch", "8"],
+                        "--n_buffer", "40", "--buffer", "20", "--batch", "8", "--lr", "0.001"],
                        capture_output=True, text=True, timeout=900)
     assert r.returncode == 0, r.stdout + r.stderr
     run = runs / "pcam_fwd_resnet18_seed0"

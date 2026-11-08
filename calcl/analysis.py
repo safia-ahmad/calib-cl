@@ -19,6 +19,7 @@ from calcl.corp import corp_crossfit
 from calcl.metrics import fit_temperature
 
 SESOI = 0.005
+SUFFIX = ""  # result-folder suffix of the stream runs to analyse, e.g. "_v2" (frozen runs never have one)
 MAIN = ("pcam_fwd", "resnet18")
 CELLS = [("pcam_fwd", "resnet18"), ("pcam_rev", "resnet18"), ("pcam_fwd", "vit_s16"), ("pcam_rev", "vit_s16")]
 SEEDS = [1, 2, 3, 4, 5]
@@ -31,7 +32,8 @@ def run_dir(out, setting, model, seed):
 
 def s_change(out, setting, model, seed, name) -> dict:
     """End minus start of Brier, MCB, DSC on S for one stream run."""
-    m = pd.read_csv(os.path.join(run_dir(out, setting, model, seed), f"stream_{name}", "metrics.csv"))
+    sfx = "" if name.startswith("frozen") else SUFFIX
+    m = pd.read_csv(os.path.join(run_dir(out, setting, model, seed), f"stream_{name}{sfx}", "metrics.csv"))
     s = m[m.set == "S"].set_index("checkpoint").sort_index()
     return {k: float(s[k].iloc[-1] - s[k].iloc[0]) for k in ["brier", "mcb", "dsc"]}
 
@@ -146,8 +148,8 @@ def h4_table(out, models, labels, wsi) -> pd.DataFrame:
         for seed in SEEDS:
             rd = run_dir(out, setting, model, seed)
             T0 = json.load(open(os.path.join(models, f"{setting}_{model}_seed{seed}", "summary.json")))["T0"]
-            ft = np.load(os.path.join(rd, "stream_ft_gradual", "logits.npz"))
-            rp = np.load(os.path.join(rd, "stream_replay_gradual", "logits.npz"))
+            ft = np.load(os.path.join(rd, f"stream_ft_gradual{SUFFIX}", "logits.npz"))
+            rp = np.load(os.path.join(rd, f"stream_replay_gradual{SUFFIX}", "logits.npz"))
             yS, yB = labels[ft["idx_S"]], labels[ft["idx_B"]]
             gB = wsi[ft["idx_B"]]
             for k in KS:
@@ -204,7 +206,7 @@ def cost_table(out) -> pd.DataFrame:
     for setting, model in CELLS:
         for seed in SEEDS:
             for name in ["ft_gradual", "replay_gradual"]:
-                p = os.path.join(run_dir(out, setting, model, seed), f"stream_{name}", "meta.json")
+                p = os.path.join(run_dir(out, setting, model, seed), f"stream_{name}{SUFFIX}", "meta.json")
                 if os.path.exists(p):
                     rows.append({"model": model, "run": name, "minutes": json.load(open(p))["minutes"]})
     c = pd.DataFrame(rows).groupby(["model", "run"]).minutes.mean().unstack()

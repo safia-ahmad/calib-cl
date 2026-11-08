@@ -133,7 +133,8 @@ if __name__ == "__main__":
     p.add_argument("--streams", default="/kaggle/working/streams")
     p.add_argument("--strategies", default="frozen,ft,replay")
     p.add_argument("--kinds", default="gradual,nodrift")
-    p.add_argument("--lr", type=float, default=0.01)
+    p.add_argument("--lr", type=float, required=True,
+                   help="stream learning rate; the study uses 0.001 (prereg.md). No default, on purpose.")
     p.add_argument("--batch", type=int, default=64)
     p.add_argument("--buffer", type=int, default=1000)
     p.add_argument("--n_buffer", type=int, default=1000, help="size of the labelled source set B")
