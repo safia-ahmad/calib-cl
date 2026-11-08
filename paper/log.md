@@ -31,3 +31,6 @@ V1 PASS on seed-0 S outputs. The model is underconfident on S at T0 (refit slope
 
 ## Day 15: 
 Stream supply check (all settings, seeds 0–5). 1,000-patch windows don’t fit: the pcam_rev no-drift twin runs out of source patches in every seed, and pcam_fwd at 50% tumour runs out in seeds 1, 3, 5. Applied the pre-registered G3 fallback: T = 10 windows × 500 patches, 50% tumour. Feasible everywhere (tightest: pcam_rev seed 4, 2,605 tumour patches available for 2,500 needed). Streams built for 2 settings × 6 seeds.
+
+## 8 Nov:
+Essential analyses (prereg_addendum). Primary cell FT: DSC lost 0.028 [0.003, 0.053], 5/5 seeds; hierarchical bootstrap 0.026 [0.011, 0.045]; ρ −0.04 [−0.41, 0.24]. ΔECE ≈ 0; Δacc −0.039; Δsensitivity −0.095 [−0.180, −0.009], specificity unchanged. Oracle temperature gain ≤ 0.003. Onset at checkpoint 6 (FT) vs 9 (replay). ViT fwd: ρ endpoint-dependent (0.74 at c10, 0.21 at c9); forgetting not established (ΔBrier CI includes 0).
