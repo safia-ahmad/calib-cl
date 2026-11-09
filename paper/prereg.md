@@ -57,3 +57,5 @@ Curves of Brier, MCB, DSC over checkpoints; G (target) metrics; isotonic recalib
 - Camelyon17-WILDS cells not run (compute and storage limits); left as future work. Study has 4 cells instead of 8.
 - Only CAMELYON16 training slides used (hospital labels of test slides could not be verified).
 - Window size 500 instead of 1,000; stream lr 0.001 by the rule above.
+
+Correction (9 Nov 2026): this plan was first committed to the repository on 8 Nov 2026 at 13:34 IST (commit 405516f), after the main runs ended (2 Nov) and before the analysis code was committed (13:55 IST) and run.
