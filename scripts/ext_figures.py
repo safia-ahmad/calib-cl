@@ -75,38 +75,51 @@ def raw(out, setting, model, run):
     return pd.DataFrame(rows)
 
 
-def fig_scatter(out, d):
-    series = [(cell, "ft", "", NAMES[cell] + ", FT", COL[cell], "o", 30) for cell in A.CELLS]
-    series += [(A.MAIN, "replay", "", "primary, replay", "#1d4ed8", "s", 34),
-               (A.MAIN, "ft", "_lrhalf", "primary, FT lr 0.0005", "#c2410c", "^", 34),
-               (A.MAIN, "ft", "_bnfrozen", "primary, FT frozen BN", "#16a34a", "D", 30),
-               (("pcam_rev", "resnet18"), "ft", "_bnfrozen", "UMCU→RUMC ResNet, FT frozen BN", "#7c3aed", "D", 30)]
-    fig, ax = plt.subplots(figsize=(6.4, 5.2))
+def _scatter_panel(ax, out, series, title, lim):
     rows = []
-    for cell, strat, sfx, lab, c, mk, sz in series:
+    for cell, strat, sfx, lab, c, mk, filled in series:
         t = drift(out, *cell, strat, sfx)
         if t is None:
             continue
-        filled = sfx == "" and strat == "ft"
-        ax.scatter(t.d_mcb, t.dsc_lost, s=sz, marker=mk, color=c if filled else "none", edgecolor=c,
+        ax.scatter(t.d_mcb, t.dsc_lost, s=26, marker=mk, color=c if filled else "none", edgecolor=c,
                    linewidth=1.2, label=lab, zorder=3)
-        ax.scatter(t.d_mcb.mean(), t.dsc_lost.mean(), s=sz * 4, marker=mk, color=c, edgecolor="k",
-                   linewidth=0.8, zorder=4)
-        rows += [{"series": lab, **r} for r in t.to_dict("records")]
-    lim = max(0.06, np.abs(pd.DataFrame(rows)[["d_mcb", "dsc_lost"]].values).max() * 1.1)
+        ax.scatter(t.d_mcb.mean(), t.dsc_lost.mean(), s=120, marker=mk, color=c, edgecolor="k", linewidth=0.8, zorder=4)
+        rows += [{"panel": title, "series": lab, **r} for r in t.to_dict("records")]
     ax.axhline(0, color="grey", lw=0.7)
     ax.axvline(0, color="grey", lw=0.7)
     xs = np.linspace(0, lim, 50)
     ax.plot(xs, 3 * xs, ls="--", color="k", lw=0.8)
-    ax.text(lim / 3.3, lim * 0.93, "ρ = 0.25", fontsize=8, ha="right")
-    ax.text(-lim * 0.95, lim * 0.95, "lost discrimination", fontsize=8, va="top", color="#444")
-    ax.text(lim * 0.95, -lim * 0.95, "added miscalibration", fontsize=8, ha="right", color="#444")
+    ax.text(lim / 3 - lim * 0.02, lim * 0.93, "ρ = 0.25", fontsize=8, ha="right")
+    ax.text(-lim * 0.95, lim * 0.95, "↑ lost discrimination", fontsize=8, va="top", color="#444")
+    ax.text(lim * 0.95, -lim * 0.95, "added miscalibration →", fontsize=8, ha="right", color="#444")
     ax.set_xlim(-lim, lim)
     ax.set_ylim(-lim, lim)
-    ax.set_xlabel("Drift-attributable ΔMCB on S (miscalibration)")
-    ax.set_ylabel("Drift-attributable DSC lost on S (discrimination)")
-    ax.set_title("Where the drift-caused damage goes (small markers: seeds; large: mean)", fontsize=9)
+    ax.set_xlabel("Drift-attributable ΔMCB on S")
+    ax.set_title(title, fontsize=9)
     ax.legend(fontsize=7, loc="lower left", frameon=False)
+    return rows
+
+
+def fig_scatter(out, d):
+    """Panel a: the four cells under FT. Panel b: controls. Clipped seeds are drawn at the edge."""
+    rev = ("pcam_rev", "resnet18")
+    pa = [(cell, "ft", "", NAMES[cell], COL[cell], "o", True) for cell in A.CELLS]
+    pb = [(A.MAIN, "ft", "", "primary: FT", "#c2410c", "o", True),
+          (A.MAIN, "replay", "", "primary: replay", "#1d4ed8", "s", False),
+          (A.MAIN, "ft", "_lrhalf", "primary: FT lr 0.0005", "#fb923c", "^", False),
+          (A.MAIN, "ft", "_bnfrozen", "primary: FT frozen BN", "#16a34a", "D", False),
+          (rev, "ft", "", "UMCU→RUMC ResNet: FT", "#7c3aed", "o", True),
+          (rev, "ft", "_bnfrozen", "UMCU→RUMC ResNet: FT frozen BN", "#7c3aed", "D", False)]
+    lim = 0.06
+    fig, axs = plt.subplots(1, 2, figsize=(11, 4.8), sharey=True)
+    rows = _scatter_panel(axs[0], out, pa, "(a) Fine-tuning, all four cells", lim)
+    rows += _scatter_panel(axs[1], out, pb, "(b) Controls (ResNet-18)", lim)
+    axs[0].set_ylabel("Drift-attributable DSC lost on S")
+    out_of_range = [r for r in rows if max(abs(r["d_mcb"]), abs(r["dsc_lost"])) > lim]
+    note = "Small markers: seeds; large: mean."
+    if out_of_range:
+        note += f" {len(out_of_range)} seed point(s) outside ±{lim} not shown (see CSV)."
+    fig.text(0.5, -0.02, note, ha="center", fontsize=8)
     save(fig, d, "figA_decomposition_scatter")
     pd.DataFrame(rows).to_csv(os.path.join(d, "figA_data.csv"), index=False)
 
@@ -143,48 +156,61 @@ def fig_fixes(out, d, k=500):
         return
     t = pd.read_csv(p)
     t = t[t.k == k]
-    fixes = [("brier_FT_end", "No fix", "#9ca3af"), ("brier_R", "Temperature (R)", "#f59e0b"),
-             ("brier_R_iso", "Isotonic (R-iso)", "#d97706"), ("brier_P", "Replay (P)", "#1d4ed8"),
-             ("brier_R+P", "Replay + temp. (R+P)", "#60a5fa")]
+    fixes = [("brier_R", "Temperature (R)", "#f59e0b"), ("brier_R_iso", "Isotonic (R-iso)", "#d97706"),
+             ("brier_P", "Replay (P)", "#1d4ed8"), ("brier_R+P", "Replay + temp. (R+P)", "#60a5fa")]
     fig, ax = plt.subplots(figsize=(8, 3.4))
-    w = 0.16
+    w = 0.18
     rows = []
     for j, cell in enumerate(A.CELLS):
         g = t[(t.setting == cell[0]) & (t.model == cell[1])]
         for i, (col, lab, c) in enumerate(fixes):
-            m, lo, hi = tci(g[col])
-            x = j + (i - 2) * w
+            diff = g[col].values - g["brier_FT_end"].values  # paired by seed
+            m, lo, hi = tci(diff)
+            x = j + (i - 1.5) * w
             ax.bar(x, m, width=w, color=c, label=lab if j == 0 else None)
             ax.errorbar(x, m, yerr=[[m - lo], [hi - m]], color="k", capsize=2, lw=0.8)
-            rows.append({"cell": NAMES[cell], "fix": lab, "mean": m, "lo": lo, "hi": hi})
+            ax.scatter(np.full(len(diff), x), diff, s=6, color="k", zorder=3)
+            rows.append({"cell": NAMES[cell], "fix": lab, "mean_change_vs_no_fix": m, "lo": lo, "hi": hi})
+    ax.axhline(0, color="grey", lw=0.7)
     ax.set_xticks(range(len(A.CELLS)))
     ax.set_xticklabels([NAMES[c].replace(", ", "\n") for c in A.CELLS], fontsize=8)
-    ax.set_ylabel(f"Brier on S at end of stream (k = {k})")
-    ax.legend(fontsize=7, ncol=5, loc="upper center", bbox_to_anchor=(0.5, 1.15), frameon=False)
+    ax.set_ylabel(f"Change in Brier on S vs no fix\n(paired by seed; k = {k}; lower = better)")
+    ax.legend(fontsize=7, ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.15), frameon=False)
     save(fig, d, "figC_fixes")
     pd.DataFrame(rows).to_csv(os.path.join(d, "figC_data.csv"), index=False)
 
 
 def fig_controls(out, d):
-    items = [("ft", "", "FT\n(lr 0.001)", "#c2410c"), ("ft", "_lrhalf", "FT\nlr 0.0005", "#fb923c"),
-             ("ft", "_bnfrozen", "FT\nfrozen BN", "#16a34a"), ("replay", "", "Replay", "#1d4ed8")]
-    fig, ax = plt.subplots(figsize=(4.8, 3.4))
+    rev = ("pcam_rev", "resnet18")
+    items = [(A.MAIN, "ft", "", "FT\n(lr 0.001)", "#c2410c"), (A.MAIN, "ft", "_lrhalf", "FT\nlr 0.0005", "#fb923c"),
+             (A.MAIN, "ft", "_bnfrozen", "FT\nfrozen BN", "#16a34a"), (A.MAIN, "replay", "", "Replay", "#1d4ed8"),
+             (rev, "ft", "", "FT", "#7c3aed"), (rev, "ft", "_bnfrozen", "FT\nfrozen BN", "#16a34a")]
+    fig, axs = plt.subplots(1, 2, figsize=(9, 3.6), sharey=True)
     rows = []
-    for i, (strat, sfx, lab, c) in enumerate(items):
-        t = drift(out, *A.MAIN, strat, sfx)
+    for i, (cell, strat, sfx, lab, c) in enumerate(items):
+        t = drift(out, *cell, strat, sfx)
         if t is None:
             continue
-        m, lo, hi = tci(t.dsc_lost)
-        ax.bar(i, m, color=c, alpha=0.8)
-        ax.errorbar(i, m, yerr=[[m - lo], [hi - m]], color="k", capsize=3, lw=1)
-        ax.scatter(np.full(len(t), i), t.dsc_lost, s=10, color="k", zorder=3)
-        rows.append({"condition": lab.replace("\n", " "), "mean": m, "lo": lo, "hi": hi})
-    ax.axhline(0, color="grey", lw=0.7)
-    ax.axhline(0.005, color="grey", lw=0.7, ls=":")
-    ax.set_xticks(range(len(items)))
-    ax.set_xticklabels([x[2] for x in items], fontsize=8)
-    ax.set_ylabel("Drift-attributable DSC lost on S")
-    ax.set_title("Primary cell: controls (mean, 95% t-CI, seeds)", fontsize=9)
+        for j, (col, title) in enumerate([("dsc_lost", "DSC lost (discrimination)"), ("d_mcb", "ΔMCB (miscalibration)")]):
+            ax = axs[j]
+            x = i + (0.6 if i >= 4 else 0)
+            m, lo, hi = tci(t[col])
+            ax.bar(x, m, color=c, alpha=0.8, width=0.7)
+            ax.errorbar(x, m, yerr=[[m - lo], [hi - m]], color="k", capsize=3, lw=1)
+            ax.scatter(np.full(len(t), x), t[col], s=8, color="k", zorder=3)
+            ax.set_title(title, fontsize=9)
+            rows.append({"cell": NAMES[cell], "condition": lab.replace("\n", " "), "metric": col,
+                         "mean": m, "lo": lo, "hi": hi})
+    xt = [i + (0.6 if i >= 4 else 0) for i in range(len(items))]
+    for ax in axs:
+        ax.axhline(0, color="grey", lw=0.7)
+        ax.axhline(0.005, color="grey", lw=0.7, ls=":")
+        ax.set_xticks(xt)
+        ax.set_xticklabels([x[3] for x in items], fontsize=7)
+        ax.text(1.5, ax.get_ylim()[0], "RUMC→UMCU (primary)", ha="center", va="bottom", fontsize=7)
+        ax.text(4.6 + 0.5, ax.get_ylim()[0], "UMCU→RUMC", ha="center", va="bottom", fontsize=7)
+    axs[0].set_ylabel("Drift-attributable change on S")
+    fig.suptitle("ResNet-18 controls (mean, 95% t-CI, seeds; dotted line = SESOI 0.005)", fontsize=9)
     save(fig, d, "figD_controls")
     pd.DataFrame(rows).to_csv(os.path.join(d, "figD_data.csv"), index=False)
 
