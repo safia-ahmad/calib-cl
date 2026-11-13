@@ -76,7 +76,8 @@ def run_one(a, X, man, run_dir, strategy, kind, dev):
                 logits[f"{name}_c{c}"] = z.astype(np.float16)
         if c < T and strategy != "frozen":
             loss = train_window(model, opt, X, y_all, windows[c], dev, rng, batch=a.batch,
-                                buffer=buffer, colour=a.colour, scaler=scaler, stats=stats)
+                                buffer=buffer, colour=a.colour, scaler=scaler, stats=stats,
+                                freeze_bn=a.freeze_bn)
             rows[-1]["train_loss_next"] = loss
         last = {r_["set"]: r_ for r_ in rows if r_["checkpoint"] == c}
         print(f"  c={c:2d} | S brier {last['S']['brier']:.4f} mcb {last['S']['mcb']:.4f} "
@@ -85,7 +86,7 @@ def run_one(a, X, man, run_dir, strategy, kind, dev):
     pd.DataFrame(rows).to_csv(os.path.join(out_dir, "metrics.csv"), index=False)
     np.savez_compressed(os.path.join(out_dir, "logits.npz"),
                         **{f"idx_{k}": v for k, v in sets.items()}, **logits)
-    meta = {"T0": T0, "lr": a.lr, "batch": a.batch, "buffer": a.buffer if buffer else 0,
+    meta = {"T0": T0, "lr": a.lr, "batch": a.batch, "freeze_bn": a.freeze_bn, "buffer": a.buffer if buffer else 0,
             "colour": a.colour, "minutes": (time.time() - t_start) / 60,
             "buffer_items": len(buffer.items) if buffer else 0, **stats}
     json.dump(meta, open(os.path.join(out_dir, "meta.json"), "w"), indent=2)
@@ -139,5 +140,7 @@ if __name__ == "__main__":
     p.add_argument("--buffer", type=int, default=1000)
     p.add_argument("--n_buffer", type=int, default=1000, help="size of the labelled source set B")
     p.add_argument("--colour", type=float, default=0.5)
+    p.add_argument("--freeze_bn", action="store_true",
+                   help="addendum 4, X6: keep BatchNorm statistics frozen during stream updates (default off)")
     p.add_argument("--workers", type=int, default=2)
     main(p.parse_args())
