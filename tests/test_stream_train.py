@@ -57,3 +57,19 @@ def test_run_stream_end_to_end(tmp_path):
     assert s.max() - s.min() < 1e-6  # frozen model never changes on S
     lg = np.load(run / "stream_ft_gradual" / "logits.npz")
     assert "S_c0" in lg and "B_c4" in lg
+
+
+def test_freeze_bn_keeps_running_stats():
+    import torch
+    from calcl.stream_train import train_window
+    torch.manual_seed(0)
+    model = torch.nn.Sequential(torch.nn.Conv2d(3, 4, 3), torch.nn.BatchNorm2d(4), torch.nn.AdaptiveAvgPool2d(1),
+                                torch.nn.Flatten(), torch.nn.Linear(4, 2))
+    X = np.random.default_rng(0).integers(0, 255, (40, 96, 96, 3), dtype=np.uint8)
+    y = np.random.default_rng(1).integers(0, 2, 40)
+    before = model[1].running_mean.clone()
+    opt = torch.optim.SGD(model.parameters(), lr=0.01)
+    train_window(model, opt, X, y, np.arange(40), torch.device("cpu"), np.random.default_rng(0), batch=16, freeze_bn=True)
+    assert torch.equal(before, model[1].running_mean)
+    train_window(model, opt, X, y, np.arange(40), torch.device("cpu"), np.random.default_rng(0), batch=16, freeze_bn=False)
+    assert not torch.equal(before, model[1].running_mean)
