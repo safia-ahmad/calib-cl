@@ -53,10 +53,15 @@ def make_batch(X, labels, idx, colour: float):
 
 
 def train_window(model, opt, X, labels, window, device, rng, batch: int = 64,
-                 buffer: Reservoir | None = None, colour: float = 0.5, scaler=None, stats: dict | None = None) -> float:
+                 buffer: Reservoir | None = None, colour: float = 0.5, scaler=None, stats: dict | None = None,
+                 freeze_bn: bool = False) -> float:
     """One pass over the window. With a buffer: each step adds an equal number of
     replayed patches, then the step's new patches enter the reservoir."""
     model.train()
+    if freeze_bn:  # addendum 4, X6: keep BatchNorm running statistics at their source values
+        for m in model.modules():
+            if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
+                m.eval()
     order = rng.permutation(window)
     tot, n = 0.0, 0
     for s in range(0, len(order), batch):
