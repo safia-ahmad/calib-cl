@@ -118,3 +118,19 @@ def test_feasibility_script_end_to_end(tmp_path):
     meta = synth_meta()
     t = F.run(meta, lambda s, x, y: big[y:y + 96, x:x + 96], str(tmp_path), seeds=[1, 2])
     assert len(t) == 8 and (tmp_path / "feasibility_report.txt").exists()
+
+
+def test_arrangements_are_distinct_role_sets():
+    for rich in ([1, 2, 3], [1, 2, 3, 4]):
+        for side in ("src", "tgt"):
+            arrs = C.arrangements(rich, side, 2026)
+            assert len({tuple(sorted(a.items())) for a in arrs}) == len(arrs)
+    assert len(C.arrangements([1, 2, 3, 4], "tgt", 2027)) == 6   # {2 stream, 2 test} partitions
+    assert len(C.arrangements([1, 2, 3, 4], "src", 2026)) == 12
+
+
+def test_seeds_rotate_through_distinct_arrangements():
+    m = C.cap_patches(synth_meta(), cap=3000)
+    rs = C.plan_cell_seeds(m, "c17_1to4", [1, 2, 3], 96)
+    assert all(r["feasible"] for r in rs)
+    assert len({r["src_info"]["arrangement"] for r in rs}) == 3
