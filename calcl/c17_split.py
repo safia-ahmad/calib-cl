@@ -310,12 +310,14 @@ def plan_cell(capped: pd.DataFrame, cell: str, seed: int, P: float, src_start: i
     assert final_check(src) == []  # recompute for the chosen roles (cache may hold a failed attempt)
     lab, rep = cache["lab"], cache["rep"]
     assert_no_leakage(capped, src, tgt, lab, P)
+    out["val_labels"] = lab  # Series indexed like `capped`: train / val_es / val_temp / removed
     out.update({"src_roles": src, "tgt_roles": tgt, "src_supply": role_supply(us, src),
                 "tgt_supply": role_supply(ut, tgt), "val": rep})
     man = capped.rename(columns={"slide": "wsi", "tumor": "label"}).reset_index(drop=True)
     for name, roles, hosp in (("S", src, s_c), ("G", tgt, t_c)):
         sl = sorted(set(man.wsi[man.patient.isin([p for p, r in roles.items() if r == "test"])]))
         idx = eval_sample(man, sl, n=2000, cap=400, seed=seed)
+        out[f"{name}_idx"] = idx  # positions in `capped` (= manifest rows when capped has a RangeIndex)
         e = man.loc[idx]
         out[name] = {"n": len(e), "t": int(e.label.sum()), "tumour_prop": round(float(e.label.mean()), 3),
                      "patients": sorted(int(p) for p in e.patient.unique()), "slides": int(e.wsi.nunique())}
