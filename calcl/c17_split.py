@@ -27,6 +27,7 @@ SRC_PRE = {"train": 1500, "stream": 2750, "test": 400}      # per class, before 
 TGT_PRE = {"stream": 1400, "test": 400}
 FINAL = {"train": 1500, "val_es": 150, "val_temp": 150}      # per class, after split + overlap removal
 MAX_MINOR_ATTEMPTS = 2000
+MAX_BLOCK_DRAWS = 20            # block-label draws tried per minor-patient draw before moving on
 PAIRS = {"c17_1to4": (1, 4), "c17_0to3": (0, 3), "c17_4to1": (4, 1), "c17_3to0": (3, 0)}
 CELL_CODE = {"c17_1to4": 1, "c17_0to3": 2, "c17_4to1": 3, "c17_3to0": 4}
 PRIMARY = ("c17_1to4", "c17_0to3")
@@ -111,15 +112,17 @@ def unit_table(capped: pd.DataFrame) -> pd.DataFrame:
 
 # ----------------------------------------------------------------------------- roles
 def arrangements(rich: list[int], side: str, seed_base: int) -> list[dict]:
-    """All tumour-rich arrangements of a centre, in a fixed shuffled order."""
+    """All distinct tumour-rich arrangements of a centre, in a fixed shuffled order.
+    Source: an ordered (stream, test) pair; the remaining tumour-rich patients go to train.
+    Target: every split of the tumour-rich patients with floor(k/2) in stream and the rest in test."""
+    rich = sorted(int(p) for p in rich)
     out = []
-    for st, te in itertools.permutations(sorted(rich), 2):
-        extra = [p for p in sorted(rich) if p not in (st, te)]
-        if side == "src":
-            a = {**{p: "train" for p in extra}, st: "stream", te: "test"}
-        else:
-            a = {st: "stream", te: "test", **{p: ("test" if i % 2 == 0 else "stream") for i, p in enumerate(extra)}}
-        out.append(a)
+    if side == "src":
+        for st, te in itertools.permutations(rich, 2):
+            out.append({**{p: "train" for p in rich if p not in (st, te)}, st: "stream", te: "test"})
+    else:
+        for st in itertools.combinations(rich, len(rich) // 2):
+            out.append({p: ("stream" if p in st else "test") for p in rich})
     order = np.random.default_rng(seed_base).permutation(len(out))
     return [out[i] for i in order]
 
@@ -180,7 +183,7 @@ def _conflicts(df: pd.DataFrame, lab: np.ndarray, P: float) -> np.ndarray:
     return bad
 
 
-def spatial_split(train: pd.DataFrame, P: float, seed: int, block_patches: int = BLOCK_PATCHES):
+def spatial_split(train: pd.DataFrame, P: float, seed, block_patches: int = BLOCK_PATCHES):
     """Assign square blocks (side block_patches * P) of the training patients' slides to
     train / val_es / val_temp (8:1:1, stratified by tumour content), then drop EVERY patch that
     overlaps a patch of a different subset. Returns (labels Series indexed like `train`, report)."""
@@ -244,18 +247,21 @@ def assert_no_leakage(capped: pd.DataFrame, src_roles: dict, tgt_roles: dict, vl
 
 
 # ----------------------------------------------------------------------------- planning
-def plan_side(units: pd.DataFrame, side: str, seed: int, cell: str, req: dict, extra_check=None):
-    """Deterministic: take kept arrangement number (seed-1) mod K in the fixed order; for it, try
-    minor-patient draws a = 0, 1, ... with rng([seed, cell_code, side, a]) until all checks pass;
-    if none passes, move to the next arrangement in the order. Returns (roles, info) or (None, info)."""
+def plan_side(units: pd.DataFrame, side: str, seed: int, cell: str, req: dict, extra_check=None, start: int = 0):
+    """Deterministic: starting at position `start` of the fixed arrangement order, try minor-patient
+    draws a = 0, 1, ... with rng([seed, cell_code, side, a]) until all checks pass; if none passes,
+    move to the next arrangement (cyclically). Returns (roles, info) or (None, info).
+    `plan_cell_seeds` sets `start` to one past the previous seed's arrangement, so seeds take
+    distinct arrangements whenever enough are feasible."""
+    from collections import Counter
     rich = units.patient[units.t >= RICH].tolist()
     minor = units.patient[units.t < RICH].tolist()
     arrs = arrangements(rich, side, 2026 if side == "src" else 2027)
     sid = 0 if side == "src" else 1
-    tried = []
-    start = (seed - 1) % max(len(arrs), 1)
+    tried, reasons = [], {}
     for off in range(len(arrs)):
         ai = (start + off) % len(arrs)
+        why = Counter()
         for a in range(MAX_MINOR_ATTEMPTS):
             rng = np.random.default_rng([seed, CELL_CODE[cell], sid, a])
             roles = {**{int(k): v for k, v in arrs[ai].items()}, **deal_minor(minor, side, rng)}
@@ -264,12 +270,15 @@ def plan_side(units: pd.DataFrame, side: str, seed: int, cell: str, req: dict, e
                 fails = extra_check(roles)
             if not fails:
                 return roles, {"arrangement": ai, "n_arrangements": len(arrs), "minor_attempt": a,
-                               "arrangements_skipped": tried}
+                               "arrangements_skipped": tried, "skip_reasons": reasons}
+            why.update(fails)
         tried.append(ai)
-    return None, {"arrangement": None, "n_arrangements": len(arrs), "arrangements_skipped": tried}
+        reasons[ai] = dict(why.most_common(3))
+    return None, {"arrangement": None, "n_arrangements": len(arrs), "arrangements_skipped": tried,
+                  "skip_reasons": reasons}
 
 
-def plan_cell(capped: pd.DataFrame, cell: str, seed: int, P: float) -> dict:
+def plan_cell(capped: pd.DataFrame, cell: str, seed: int, P: float, src_start: int = 0, tgt_start: int = 0) -> dict:
     s_c, t_c = PAIRS[cell]
     units = unit_table(capped)
     us, ut = units[units.center == s_c], units[units.center == t_c]
@@ -278,21 +287,27 @@ def plan_cell(capped: pd.DataFrame, cell: str, seed: int, P: float) -> dict:
     memo = {}
 
     def final_check(roles):
+        """Block draws b = 0..MAX_BLOCK_DRAWS-1 with rng([1000*seed + cell_code, b]); first that passes."""
         tp = frozenset(p for p, r in roles.items() if r == "train")
-        if tp not in memo:  # the split depends only on the training patients (and the seed)
-            tr = capped[capped.patient.isin(tp)]
-            memo[tp] = spatial_split(tr, P, seed=1000 * seed + CELL_CODE[cell])
-        lab, rep = memo[tp]
-        cache["lab"], cache["rep"] = lab, rep
-        return [f"{s}.{c}<{m}" for s, m in FINAL.items() for c in ("t", "n") if rep[f"{s}_{c}"] < m]
+        fails = []
+        for b in range(MAX_BLOCK_DRAWS):
+            if (tp, b) not in memo:  # the split depends only on the training patients, seed and b
+                tr = capped[capped.patient.isin(tp)]
+                memo[(tp, b)] = spatial_split(tr, P, seed=[1000 * seed + CELL_CODE[cell], b])
+            lab, rep = memo[(tp, b)]
+            fails = [f"{s}.{c}<{m}" for s, m in FINAL.items() for c in ("t", "n") if rep[f"{s}_{c}"] < m]
+            if not fails:
+                cache["lab"], cache["rep"] = lab, {**rep, "block_draw": b}
+                return []
+        return fails
 
-    src, si = plan_side(us, "src", seed, cell, SRC_PRE, extra_check=final_check)
-    tgt, ti = plan_side(ut, "tgt", seed, cell, TGT_PRE)
+    src, si = plan_side(us, "src", seed, cell, SRC_PRE, extra_check=final_check, start=src_start)
+    tgt, ti = plan_side(ut, "tgt", seed, cell, TGT_PRE, start=tgt_start)
     out = {"cell": cell, "seed": seed, "primary": cell in PRIMARY, "src_info": si, "tgt_info": ti,
            "feasible": src is not None and tgt is not None}
     if not out["feasible"]:
         return out
-    final_check(src)  # recompute for the chosen roles (cache may hold the last failed attempt)
+    assert final_check(src) == []  # recompute for the chosen roles (cache may hold a failed attempt)
     lab, rep = cache["lab"], cache["rep"]
     assert_no_leakage(capped, src, tgt, lab, P)
     out.update({"src_roles": src, "tgt_roles": tgt, "src_supply": role_supply(us, src),
@@ -304,4 +319,17 @@ def plan_cell(capped: pd.DataFrame, cell: str, seed: int, P: float) -> dict:
         e = man.loc[idx]
         out[name] = {"n": len(e), "t": int(e.label.sum()), "tumour_prop": round(float(e.label.mean()), 3),
                      "patients": sorted(int(p) for p in e.patient.unique()), "slides": int(e.wsi.nunique())}
+    return out
+
+
+def plan_cell_seeds(capped: pd.DataFrame, cell: str, seeds, P: float) -> list[dict]:
+    """Seeds in increasing order. Seed 1 starts at arrangement 0; every later seed starts one past the
+    arrangement the previous seed used (cyclically), on each side separately."""
+    out, s_start, t_start = [], 0, 0
+    for seed in sorted(seeds):
+        r = plan_cell(capped, cell, seed, P, s_start, t_start)
+        out.append(r)
+        if r["feasible"]:
+            s_start = (r["src_info"]["arrangement"] + 1) % r["src_info"]["n_arrangements"]
+            t_start = (r["tgt_info"]["arrangement"] + 1) % r["tgt_info"]["n_arrangements"]
     return out
