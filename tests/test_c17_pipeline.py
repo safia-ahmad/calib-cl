@@ -38,7 +38,9 @@ def test_build_data_matches_pngs(tmp_path):
     pd.DataFrame(rows).to_csv(tmp_path / "wilds" / "metadata.csv")
     from calcl import c17_split as C
     man = B.manifest_from_meta(pd.DataFrame(rows))
-    C.unit_table(man).to_csv(tmp_path / "units.csv", index=False)
+    u = C.unit_table(man)  # committed table also lists centre 2: add a fake centre-2 row
+    pd.concat([u, pd.DataFrame([{"center": 2, "patient": 42, "slides": 1, "t": 6, "n": 6}])]).to_csv(
+        tmp_path / "units.csv", index=False)
     out = B.build(str(tmp_path / "wilds"), str(tmp_path / "data"), str(tmp_path / "units.csv"), workers=2, batch=5)
     assert len(out) == 24 and set(out.hospital) == {"c1", "c4"}           # centre 2 is never used
     with h5py.File(tmp_path / "data" / "c17_compact.h5") as f:
