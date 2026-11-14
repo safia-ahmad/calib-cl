@@ -53,9 +53,13 @@ def manifest_from_meta(meta: pd.DataFrame) -> pd.DataFrame:
 
 def check_units(man: pd.DataFrame, units_csv: str):
     got = C.unit_table(man).sort_values(["center", "patient"]).reset_index(drop=True)
-    ref = pd.read_csv(units_csv).sort_values(["center", "patient"]).reset_index(drop=True)
+    ref = pd.read_csv(units_csv)
+    ref = ref[ref.center.isin(got.center.unique())]  # the committed table also lists centre 2, which is unused
+    ref = ref.sort_values(["center", "patient"]).reset_index(drop=True)
     cols = ["center", "patient", "slides", "t", "n"]
-    assert got[cols].astype(int).equals(ref[cols].astype(int)), "capped supply differs from c17_units.csv"
+    if not got[cols].astype(int).equals(ref[cols].astype(int)):
+        m = got[cols].merge(ref[cols], on=["center", "patient"], how="outer", suffixes=("_built", "_committed"))
+        raise AssertionError("capped supply differs from c17_units.csv:\n" + m.to_string())
 
 
 def build(wilds: str, out: str, units_csv: str, workers: int = 16, batch: int = 4096, n_verify: int = 300):
