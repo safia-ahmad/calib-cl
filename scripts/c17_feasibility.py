@@ -59,9 +59,9 @@ def run(meta, load, out, seeds=range(1, 6), n_unit_pairs=40):
     for cell in C.PAIRS:
         say(f"\n################ {cell}  ({'PRIMARY' if cell in C.PRIMARY else 'secondary'}) "
             f"source {C.PAIRS[cell][0]} -> target {C.PAIRS[cell][1]}")
-        seen = {}
-        for seed in seeds:
-            r = C.plan_cell(capped, cell, seed, P)
+        seen, seen_full, seen_stest, seen_tgt = {}, {}, {}, {}
+        for r in C.plan_cell_seeds(capped, cell, seeds, P):
+            seed = r["seed"]
             full.append(r)
             if not r["feasible"]:
                 say(f"  seed {seed}: INFEASIBLE  src {r['src_info']}  tgt {r['tgt_info']}")
@@ -71,16 +71,32 @@ def run(meta, load, out, seeds=range(1, 6), n_unit_pairs=40):
             rich_key = tuple((k, tuple(ss[k]["rich"])) for k in ("train", "stream", "test"))
             rep = seen.get(rich_key)
             seen.setdefault(rich_key, seed)
+            fk = tuple(sorted(r["src_roles"].items()))
+            rep_full = seen_full.get(fk); seen_full.setdefault(fk, seed)
+            sk = tuple(ss["test"]["patients"])
+            rep_st = seen_stest.get(sk); seen_stest.setdefault(sk, seed)
+            tk = tuple(sorted(r["tgt_roles"].items()))
+            rep_t = seen_tgt.get(tk); seen_tgt.setdefault(tk, seed)
             say(f"  seed {seed}: source arrangement #{r['src_info']['arrangement']} of {r['src_info']['n_arrangements']}"
                 f" (minor draw {r['src_info']['minor_attempt']}, skipped {r['src_info']['arrangements_skipped']}),"
                 f" target #{r['tgt_info']['arrangement']} (minor draw {r['tgt_info']['minor_attempt']})"
                 + (f"   ** REPEATS seed {rep}'s tumour-rich source arrangement **" if rep else ""))
+            for ai, why in r["src_info"].get("skip_reasons", {}).items():
+                say(f"     skipped source arrangement #{ai}: most frequent failures {why}")
+            for ai, why in r["tgt_info"].get("skip_reasons", {}).items():
+                say(f"     skipped target arrangement #{ai}: most frequent failures {why}")
+            if rep_full:
+                say(f"     ** IDENTICAL source split (all patients) to seed {rep_full} **")
+            if rep_st:
+                say(f"     ** same source test patients as seed {rep_st} **")
+            if rep_t:
+                say(f"     ** IDENTICAL target split to seed {rep_t} **")
             for side, sup in (("SRC", ss), ("TGT", ts)):
                 for role in sup:
                     s = sup[role]
                     say(f"     {side} {role:6s} patients {s['patients']} (tumour-rich {s['rich']}): "
                         f"tumour {s['t']:,}  normal {s['n']:,}")
-            say(f"     validation: {v['blocks']} blocks of {v['block_side_units']:.0f} units; "
+            say(f"     validation (block draw {v['block_draw']}): {v['blocks']} blocks of {v['block_side_units']:.0f} units; "
                 + "; ".join(f"{s} assigned T{v[f'{s}_assigned_t']:,}/N{v[f'{s}_assigned_n']:,}, "
                             f"removed {v[f'{s}_removed']:,}, final T{v[f'{s}_t']:,}/N{v[f'{s}_n']:,}"
                             for s in ("train", "val_es", "val_temp")))
@@ -88,7 +104,8 @@ def run(meta, load, out, seeds=range(1, 6), n_unit_pairs=40):
                 say(f"     {e}: {r[e]['n']:,} patches, tumour {r[e]['t']:,} ({r[e]['tumour_prop']:.1%}), "
                     f"patients {r[e]['patients']}, slides {r[e]['slides']}")
             say("     leakage assertions: PASSED")
-            row = {"cell": cell, "seed": seed, "feasible": True, "repeat_of": rep,
+            row = {"cell": cell, "seed": seed, "feasible": True, "repeat_of": rep, "identical_src_split_as": rep_full,
+                   "same_src_test_as": rep_st, "identical_tgt_split_as": rep_t,
                    "src_arrangement": r["src_info"]["arrangement"], "src_minor_attempt": r["src_info"]["minor_attempt"],
                    "tgt_arrangement": r["tgt_info"]["arrangement"], "tgt_minor_attempt": r["tgt_info"]["minor_attempt"]}
             for side, sup in (("src", ss), ("tgt", ts)):
@@ -109,8 +126,13 @@ def run(meta, load, out, seeds=range(1, 6), n_unit_pairs=40):
     say(f"feasible cell-seeds: {int(t.feasible.sum())}/{len(t)}")
     say(f"infeasible: {bad[['cell', 'seed']].values.tolist() if len(bad) else 'none'}")
     reps = t[t.feasible & t.repeat_of.notna()] if "repeat_of" in t else t.iloc[0:0]
-    say(f"repeated tumour-rich source arrangements: "
+    say(f"repeated tumour-rich source arrangements (cell, seed, repeats seed): "
         f"{[(c, int(s), int(o)) for c, s, o in reps[['cell', 'seed', 'repeat_of']].values] or 'none'}")
+    for col, lab in (("identical_src_split_as", "identical full source splits"),
+                     ("same_src_test_as", "repeated source test patients"),
+                     ("identical_tgt_split_as", "identical target splits")):
+        x = t[t.feasible & t[col].notna()] if col in t else t.iloc[0:0]
+        say(f"{lab}: {[(c, int(s), int(o)) for c, s, o in x[['cell', 'seed', col]].values] or 'none'}")
     open(os.path.join(out, "feasibility_report.txt"), "w").write("\n".join(lines))
     return t
 
