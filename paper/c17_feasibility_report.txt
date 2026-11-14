@@ -1,0 +1,231 @@
+/content/calib-cl
+=== Coordinate units (measured from image overlap, not assumed) ===
+{"px_per_unit": 1.0, "P_units": 96.0, "step_units": 32, "step_px": 32, "max_match_err": 0.01676435023546219, "min_second_err": 4.864142417907715, "n_pairs": 40}
+
+Capped patches (centres 0,1,3,4): 143,669
+
+################ c17_1to4  (PRIMARY) source 1 -> target 4
+  seed 1: source arrangement #0 of 6 (minor draw 0, skipped []), target #0 (minor draw 0)
+     SRC stream patients [20, 39] (tumour-rich [20]): tumour 3,343  normal 6,467
+     SRC test   patients [21, 22] (tumour-rich [22]): tumour 3,157  normal 3,176
+     SRC train  patients [24, 34, 36, 38] (tumour-rich [34]): tumour 3,856  normal 7,809
+     TGT stream patients [81, 86, 89, 96] (tumour-rich [96]): tumour 3,187  normal 15,000
+     TGT test   patients [80, 87, 88, 92, 99] (tumour-rich [92, 99]): tumour 6,514  normal 15,000
+     validation (block draw 0): 1221 blocks of 960 units; train assigned T3,146/N6,242, removed 167, final T3,010/N6,211; val_es assigned T229/N779, removed 53, final T192/N763; val_temp assigned T481/N788, removed 98, final T399/N772
+     S: 1,357 patches, tumour 557 (41.0%), patients [21, 22], slides 2
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [80, 87, 88, 92, 99], slides 5
+     leakage assertions: PASSED
+  seed 2: source arrangement #1 of 6 (minor draw 0, skipped []), target #1 (minor draw 0)
+     SRC stream patients [20, 36] (tumour-rich [20]): tumour 3,803  normal 6,079
+     SRC test   patients [34, 39] (tumour-rich [34]): tumour 3,169  normal 3,295
+     SRC train  patients [21, 22, 24, 38] (tumour-rich [22]): tumour 3,384  normal 8,078
+     TGT stream patients [81, 86, 88, 99] (tumour-rich [99]): tumour 3,490  normal 15,000
+     TGT test   patients [80, 87, 89, 92, 96] (tumour-rich [92, 96]): tumour 6,211  normal 15,000
+     validation (block draw 0): 1104 blocks of 960 units; train assigned T2,707/N6,467, removed 103, final T2,635/N6,436; val_es assigned T319/N803, removed 92, final T245/N785; val_temp assigned T358/N808, removed 42, final T327/N797
+     S: 1,369 patches, tumour 569 (41.6%), patients [34, 39], slides 2
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [80, 87, 89, 92, 96], slides 5
+     leakage assertions: PASSED
+  seed 3: source arrangement #2 of 6 (minor draw 0, skipped []), target #2 (minor draw 0)
+     ** same source test patients as seed 1 **
+     SRC stream patients [34, 39] (tumour-rich [34]): tumour 3,169  normal 3,295
+     SRC test   patients [21, 22] (tumour-rich [22]): tumour 3,157  normal 3,176
+     SRC train  patients [20, 24, 36, 38] (tumour-rich [20]): tumour 4,030  normal 10,981
+     TGT stream patients [80, 88, 89, 92] (tumour-rich [92]): tumour 3,551  normal 12,000
+     TGT test   patients [81, 86, 87, 96, 99] (tumour-rich [96, 99]): tumour 6,150  normal 18,000
+     validation (block draw 0): 1727 blocks of 960 units; train assigned T2,856/N8,780, removed 323, final T2,570/N8,743; val_es assigned T258/N1,105, removed 95, final T186/N1,082; val_temp assigned T916/N1,096, removed 223, final T711/N1,078
+     S: 1,357 patches, tumour 557 (41.0%), patients [21, 22], slides 2
+     G: 1,950 patches, tumour 950 (48.7%), patients [81, 86, 87, 96, 99], slides 6
+     leakage assertions: PASSED
+  seed 4: source arrangement #3 of 6 (minor draw 0, skipped []), target #0 (minor draw 0)
+     ** same source test patients as seed 2 **
+     SRC stream patients [22, 36] (tumour-rich [22]): tumour 3,629  normal 3,658
+     SRC test   patients [34, 39] (tumour-rich [34]): tumour 3,169  normal 3,295
+     SRC train  patients [20, 21, 24, 38] (tumour-rich [20]): tumour 3,558  normal 10,499
+     TGT stream patients [86, 88, 89, 96] (tumour-rich [96]): tumour 3,443  normal 15,000
+     TGT test   patients [80, 81, 87, 92, 99] (tumour-rich [92, 99]): tumour 6,258  normal 15,000
+     validation (block draw 11): 1612 blocks of 960 units; train assigned T2,211/N8,406, removed 210, final T2,031/N8,376; val_es assigned T845/N1,039, removed 219, final T646/N1,019; val_temp assigned T502/N1,054, removed 155, final T363/N1,038
+     S: 1,369 patches, tumour 569 (41.6%), patients [34, 39], slides 2
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [80, 81, 87, 92, 99], slides 5
+     leakage assertions: PASSED
+  seed 5: source arrangement #4 of 6 (minor draw 1, skipped []), target #1 (minor draw 0)
+     SRC stream patients [34, 36] (tumour-rich [34]): tumour 3,629  normal 2,907
+     SRC test   patients [20, 39] (tumour-rich [20]): tumour 3,343  normal 6,467
+     SRC train  patients [21, 22, 24, 38] (tumour-rich [22]): tumour 3,384  normal 8,078
+     TGT stream patients [81, 87, 88, 99] (tumour-rich [99]): tumour 3,496  normal 12,000
+     TGT test   patients [80, 86, 89, 92, 96] (tumour-rich [92, 96]): tumour 6,205  normal 18,000
+     validation (block draw 0): 1104 blocks of 960 units; train assigned T2,630/N6,475, removed 244, final T2,416/N6,445; val_es assigned T370/N794, removed 102, final T284/N778; val_temp assigned T384/N809, removed 122, final T278/N793
+     S: 1,743 patches, tumour 743 (42.6%), patients [20, 39], slides 3
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [80, 86, 89, 92, 96], slides 6
+     leakage assertions: PASSED
+
+################ c17_0to3  (PRIMARY) source 0 -> target 3
+  seed 1: source arrangement #0 of 12 (minor draw 0, skipped []), target #0 (minor draw 0)
+     SRC stream patients [9, 15] (tumour-rich [15]): tumour 4,485  normal 7,491
+     SRC test   patients [10, 16] (tumour-rich [10]): tumour 1,197  normal 5,854
+     SRC train  patients [4, 12, 17] (tumour-rich [12, 17]): tumour 6,798  normal 11,577
+     TGT stream patients [61, 64, 66, 67, 73] (tumour-rich [73]): tumour 3,488  normal 15,000
+     TGT test   patients [60, 62, 68, 72, 75] (tumour-rich [62, 75]): tumour 5,270  normal 15,000
+     validation (block draw 0): 1023 blocks of 960 units; train assigned T5,509/N9,340, removed 452, final T5,154/N9,243; val_es assigned T687/N1,142, removed 245, final T502/N1,082; val_temp assigned T602/N1,095, removed 198, final T456/N1,043
+     S: 1,205 patches, tumour 405 (33.6%), patients [10, 16], slides 2
+     G: 1,892 patches, tumour 892 (47.1%), patients [60, 62, 68, 72, 75], slides 5
+     leakage assertions: PASSED
+  seed 2: source arrangement #2 of 12 (minor draw 0, skipped [1]), target #1 (minor draw 0)
+     skipped source arrangement #1: most frequent failures {'stream.t<2750': 2000}
+     SRC stream patients [16, 17] (tumour-rich [17]): tumour 3,767  normal 10,589
+     SRC test   patients [4, 10] (tumour-rich [10]): tumour 1,228  normal 5,854
+     SRC train  patients [9, 12, 15] (tumour-rich [12, 15]): tumour 7,485  normal 8,479
+     TGT stream patients [61, 64, 66, 67, 75] (tumour-rich [75]): tumour 3,488  normal 15,000
+     TGT test   patients [60, 62, 68, 72, 73] (tumour-rich [62, 73]): tumour 5,270  normal 15,000
+     validation (block draw 0): 722 blocks of 960 units; train assigned T5,916/N6,795, removed 333, final T5,659/N6,719; val_es assigned T991/N838, removed 181, final T841/N807; val_temp assigned T578/N846, removed 158, final T463/N803
+     S: 1,236 patches, tumour 436 (35.3%), patients [4, 10], slides 2
+     G: 1,892 patches, tumour 892 (47.1%), patients [60, 62, 68, 72, 73], slides 5
+     leakage assertions: PASSED
+  seed 3: source arrangement #3 of 12 (minor draw 0, skipped []), target #2 (minor draw 0)
+     SRC stream patients [15, 16] (tumour-rich [15]): tumour 4,183  normal 7,491
+     SRC test   patients [9, 17] (tumour-rich [17]): tumour 4,069  normal 10,589
+     SRC train  patients [4, 10, 12] (tumour-rich [10, 12]): tumour 4,228  normal 6,842
+     TGT stream patients [60, 61, 62, 66, 67] (tumour-rich [62]): tumour 2,662  normal 15,000
+     TGT test   patients [64, 68, 72, 73, 75] (tumour-rich [73, 75]): tumour 6,096  normal 15,000
+     validation (block draw 0): 535 blocks of 960 units; train assigned T3,433/N5,484, removed 232, final T3,250/N5,435; val_es assigned T385/N643, removed 151, final T259/N618; val_temp assigned T410/N715, removed 131, final T310/N684
+     S: 2,000 patches, tumour 1,000 (50.0%), patients [9, 17], slides 4
+     G: 1,896 patches, tumour 896 (47.3%), patients [64, 68, 72, 73, 75], slides 5
+     leakage assertions: PASSED
+  seed 4: source arrangement #4 of 12 (minor draw 0, skipped []), target #0 (minor draw 0)
+     SRC stream patients [9, 17] (tumour-rich [17]): tumour 4,069  normal 10,589
+     SRC test   patients [15, 16] (tumour-rich [15]): tumour 4,183  normal 7,491
+     SRC train  patients [4, 10, 12] (tumour-rich [10, 12]): tumour 4,228  normal 6,842
+     TGT stream patients [64, 66, 68, 72, 73] (tumour-rich [73]): tumour 3,265  normal 15,000
+     TGT test   patients [60, 61, 62, 67, 75] (tumour-rich [62, 75]): tumour 5,493  normal 15,000
+     validation (block draw 0): 535 blocks of 960 units; train assigned T3,382/N5,466, removed 289, final T3,153/N5,406; val_es assigned T403/N661, removed 158, final T273/N633; val_temp assigned T443/N715, removed 126, final T351/N681
+     S: 1,805 patches, tumour 805 (44.6%), patients [15, 16], slides 3
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [60, 61, 62, 67, 75], slides 5
+     leakage assertions: PASSED
+  seed 5: source arrangement #7 of 12 (minor draw 0, skipped [5, 6]), target #1 (minor draw 0)
+     skipped source arrangement #5: most frequent failures {'stream.t<2750': 2000}
+     skipped source arrangement #6: most frequent failures {'stream.t<2750': 2000}
+     ** same source test patients as seed 1 **
+     SRC stream patients [9, 12] (tumour-rich [12]): tumour 3,307  normal 3,988
+     SRC test   patients [10, 16] (tumour-rich [10]): tumour 1,197  normal 5,854
+     SRC train  patients [4, 15, 17] (tumour-rich [15, 17]): tumour 7,976  normal 15,080
+     TGT stream patients [60, 61, 66, 68, 75] (tumour-rich [75]): tumour 3,323  normal 15,000
+     TGT test   patients [62, 64, 67, 72, 73] (tumour-rich [62, 73]): tumour 5,435  normal 15,000
+     validation (block draw 0): 1197 blocks of 960 units; train assigned T6,403/N12,046, removed 463, final T6,095/N11,891; val_es assigned T890/N1,552, removed 256, final T710/N1,476; val_temp assigned T683/N1,482, removed 239, final T522/N1,404
+     S: 1,205 patches, tumour 405 (33.6%), patients [10, 16], slides 2
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [62, 64, 67, 72, 73], slides 5
+     leakage assertions: PASSED
+
+################ c17_4to1  (secondary) source 4 -> target 1
+  seed 1: source arrangement #0 of 6 (minor draw 0, skipped []), target #0 (minor draw 0)
+     SRC stream patients [81, 87, 92] (tumour-rich [92]): tumour 3,132  normal 9,000
+     SRC test   patients [88, 96] (tumour-rich [96]): tumour 3,364  normal 6,000
+     SRC train  patients [80, 86, 89, 99] (tumour-rich [99]): tumour 3,205  normal 15,000
+     TGT stream patients [22, 24, 36, 39] (tumour-rich [22]): tumour 3,847  normal 9,881
+     TGT test   patients [20, 21, 34, 38] (tumour-rich [20, 34]): tumour 6,509  normal 7,571
+     validation (block draw 0): 1398 blocks of 960 units; train assigned T2,529/N11,972, removed 263, final T2,405/N11,833; val_es assigned T378/N1,518, removed 128, final T320/N1,448; val_temp assigned T298/N1,510, removed 141, final T229/N1,438
+     S: 1,564 patches, tumour 764 (48.8%), patients [88, 96], slides 2
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [20, 21, 34, 38], slides 5
+     leakage assertions: PASSED
+  seed 2: source arrangement #1 of 6 (minor draw 0, skipped []), target #1 (minor draw 0)
+     SRC stream patients [86, 88, 92] (tumour-rich [92]): tumour 3,382  normal 12,000
+     SRC test   patients [80, 99] (tumour-rich [99]): tumour 3,126  normal 6,000
+     SRC train  patients [81, 87, 89, 96] (tumour-rich [96]): tumour 3,193  normal 12,000
+     TGT stream patients [21, 24, 34, 39] (tumour-rich [34]): tumour 3,375  normal 8,648
+     TGT test   patients [20, 22, 36, 38] (tumour-rich [20, 22]): tumour 6,981  normal 8,804
+     validation (block draw 0): 1124 blocks of 960 units; train assigned T2,568/N9,531, removed 132, final T2,549/N9,418; val_es assigned T312/N1,230, removed 59, final T299/N1,184; val_temp assigned T313/N1,239, removed 88, final T297/N1,167
+     S: 1,326 patches, tumour 526 (39.7%), patients [80, 99], slides 2
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [20, 22, 36, 38], slides 5
+     leakage assertions: PASSED
+  seed 3: source arrangement #2 of 6 (minor draw 0, skipped []), target #2 (minor draw 0)
+     SRC stream patients [80, 89, 99] (tumour-rich [99]): tumour 3,187  normal 9,000
+     SRC test   patients [87, 96] (tumour-rich [96]): tumour 3,024  normal 6,000
+     SRC train  patients [81, 86, 88, 92] (tumour-rich [92]): tumour 3,490  normal 15,000
+     TGT stream patients [20, 36, 38, 39] (tumour-rich [20]): tumour 4,150  normal 9,594
+     TGT test   patients [21, 22, 24, 34] (tumour-rich [22, 34]): tumour 6,206  normal 7,858
+     validation (block draw 0): 1538 blocks of 960 units; train assigned T2,703/N11,968, removed 292, final T2,515/N11,864; val_es assigned T331/N1,521, removed 119, final T262/N1,471; val_temp assigned T456/N1,511, removed 184, final T334/N1,449
+     S: 1,224 patches, tumour 424 (34.6%), patients [87, 96], slides 2
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [21, 22, 24, 34], slides 5
+     leakage assertions: PASSED
+  seed 4: source arrangement #3 of 6 (minor draw 0, skipped []), target #0 (minor draw 0)
+     SRC stream patients [80, 87, 96] (tumour-rich [96]): tumour 3,150  normal 9,000
+     SRC test   patients [89, 99] (tumour-rich [99]): tumour 3,061  normal 6,000
+     SRC train  patients [81, 86, 88, 92] (tumour-rich [92]): tumour 3,490  normal 15,000
+     TGT stream patients [21, 22, 24, 36] (tumour-rich [22]): tumour 3,835  normal 9,011
+     TGT test   patients [20, 34, 38, 39] (tumour-rich [20, 34]): tumour 6,521  normal 8,441
+     validation (block draw 0): 1538 blocks of 960 units; train assigned T2,777/N11,977, removed 303, final T2,578/N11,873; val_es assigned T228/N1,521, removed 133, final T154/N1,462; val_temp assigned T485/N1,502, removed 173, final T372/N1,442
+     S: 1,261 patches, tumour 461 (36.6%), patients [89, 99], slides 2
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [20, 34, 38, 39], slides 5
+     leakage assertions: PASSED
+  seed 5: source arrangement #4 of 6 (minor draw 0, skipped []), target #1 (minor draw 0)
+     SRC stream patients [81, 89, 99] (tumour-rich [99]): tumour 3,169  normal 9,000
+     SRC test   patients [87, 92] (tumour-rich [92]): tumour 3,024  normal 6,000
+     SRC train  patients [80, 86, 88, 96] (tumour-rich [96]): tumour 3,508  normal 15,000
+     TGT stream patients [21, 34, 36, 39] (tumour-rich [34]): tumour 3,955  normal 6,873
+     TGT test   patients [20, 22, 24, 38] (tumour-rich [20, 22]): tumour 6,401  normal 10,579
+     validation (block draw 0): 1579 blocks of 960 units; train assigned T2,853/N12,042, removed 140, final T2,821/N11,934; val_es assigned T328/N1,478, removed 73, final T317/N1,416; val_temp assigned T327/N1,480, removed 87, final T309/N1,411
+     S: 1,224 patches, tumour 424 (34.6%), patients [87, 92], slides 2
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [20, 22, 24, 38], slides 6
+     leakage assertions: PASSED
+
+################ c17_3to0  (secondary) source 3 -> target 0
+  seed 1: source arrangement #2 of 6 (minor draw 12, skipped [0, 1]), target #0 (minor draw 0)
+     skipped source arrangement #0: most frequent failures {'stream.t<2750': 2000}
+     skipped source arrangement #1: most frequent failures {'stream.t<2750': 2000}
+     SRC stream patients [61, 64, 75] (tumour-rich [75]): tumour 3,142  normal 9,000
+     SRC test   patients [68, 72, 73] (tumour-rich [73]): tumour 3,077  normal 9,000
+     SRC train  patients [60, 62, 66, 67] (tumour-rich [62]): tumour 2,539  normal 12,000
+     TGT stream patients [9, 10, 16, 17] (tumour-rich [10, 17]): tumour 5,266  normal 16,443
+     TGT test   patients [4, 12, 15] (tumour-rich [12, 15]): tumour 7,214  normal 8,479
+     validation (block draw 2): 1105 blocks of 960 units; train assigned T2,125/N9,559, removed 149, final T2,058/N9,477; val_es assigned T170/N1,237, removed 67, final T153/N1,187; val_temp assigned T244/N1,204, removed 95, final T201/N1,152
+     S: 1,477 patches, tumour 477 (32.3%), patients [68, 72, 73], slides 3
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [4, 12, 15], slides 4
+     leakage assertions: PASSED
+  seed 2: source arrangement #3 of 6 (minor draw 1, skipped []), target #1 (minor draw 0)
+     SRC stream patients [64, 67, 73] (tumour-rich [73]): tumour 3,196  normal 9,000
+     SRC test   patients [60, 61, 75] (tumour-rich [75]): tumour 3,138  normal 9,000
+     SRC train  patients [62, 66, 68, 72] (tumour-rich [62]): tumour 2,424  normal 12,000
+     TGT stream patients [4, 15, 16, 17] (tumour-rich [15, 17]): tumour 7,981  normal 18,080
+     TGT test   patients [9, 10, 12] (tumour-rich [10, 12]): tumour 4,499  normal 6,842
+     validation (block draw 13): 1193 blocks of 960 units; train assigned T2,031/N9,584, removed 156, final T1,972/N9,487; val_es assigned T223/N1,185, removed 81, final T184/N1,143; val_temp assigned T170/N1,231, removed 64, final T153/N1,184
+     S: 1,538 patches, tumour 538 (35.0%), patients [60, 61, 75], slides 3
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [9, 10, 12], slides 3
+     leakage assertions: PASSED
+  seed 3: source arrangement #4 of 6 (minor draw 0, skipped []), target #2 (minor draw 0)
+     SRC stream patients [61, 64, 75] (tumour-rich [75]): tumour 3,142  normal 9,000
+     SRC test   patients [62, 66, 68] (tumour-rich [62]): tumour 2,363  normal 9,000
+     SRC train  patients [60, 67, 72, 73] (tumour-rich [73]): tumour 3,253  normal 12,000
+     TGT stream patients [4, 9, 12, 15] (tumour-rich [12, 15]): tumour 7,521  normal 11,479
+     TGT test   patients [10, 16, 17] (tumour-rich [10, 17]): tumour 4,959  normal 13,443
+     validation (block draw 0): 1217 blocks of 960 units; train assigned T2,615/N9,604, removed 124, final T2,564/N9,531; val_es assigned T320/N1,166, removed 69, final T293/N1,124; val_temp assigned T318/N1,230, removed 79, final T283/N1,186
+     S: 1,585 patches, tumour 585 (36.9%), patients [62, 66, 68], slides 3
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [10, 16, 17], slides 5
+     leakage assertions: PASSED
+  seed 4: source arrangement #5 of 6 (minor draw 0, skipped []), target #3 (minor draw 0)
+     SRC stream patients [60, 72, 73] (tumour-rich [73]): tumour 3,076  normal 9,000
+     SRC test   patients [62, 67, 68] (tumour-rich [62]): tumour 2,371  normal 9,000
+     SRC train  patients [61, 64, 66, 75] (tumour-rich [75]): tumour 3,311  normal 12,000
+     TGT stream patients [4, 9, 10, 15] (tumour-rich [10, 15]): tumour 5,713  normal 13,345
+     TGT test   patients [12, 16, 17] (tumour-rich [12, 17]): tumour 6,767  normal 11,577
+     validation (block draw 0): 834 blocks of 960 units; train assigned T2,630/N9,641, removed 233, final T2,517/N9,521; val_es assigned T313/N1,168, removed 112, final T262/N1,107; val_temp assigned T368/N1,191, removed 115, final T320/N1,124
+     S: 1,593 patches, tumour 593 (37.2%), patients [62, 67, 68], slides 3
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [12, 16, 17], slides 5
+     leakage assertions: PASSED
+  seed 5: source arrangement #2 of 6 (minor draw 0, skipped [0, 1]), target #4 (minor draw 0)   ** REPEATS seed 1's tumour-rich source arrangement **
+     skipped source arrangement #0: most frequent failures {'stream.t<2750': 2000}
+     skipped source arrangement #1: most frequent failures {'stream.t<2750': 2000}
+     SRC stream patients [60, 72, 75] (tumour-rich [75]): tumour 3,076  normal 9,000
+     SRC test   patients [67, 68, 73] (tumour-rich [73]): tumour 3,193  normal 9,000
+     SRC train  patients [61, 62, 64, 66] (tumour-rich [62]): tumour 2,489  normal 12,000
+     TGT stream patients [4, 9, 10, 12] (tumour-rich [10, 12]): tumour 4,535  normal 9,842
+     TGT test   patients [15, 16, 17] (tumour-rich [15, 17]): tumour 7,945  normal 15,080
+     validation (block draw 9): 891 blocks of 960 units; train assigned T1,695/N9,633, removed 299, final T1,506/N9,523; val_es assigned T566/N1,171, removed 185, final T449/N1,103; val_temp assigned T228/N1,196, removed 108, final T185/N1,131
+     S: 1,593 patches, tumour 593 (37.2%), patients [67, 68, 73], slides 3
+     G: 2,000 patches, tumour 1,000 (50.0%), patients [15, 16, 17], slides 6
+     leakage assertions: PASSED
+
+=== SUMMARY ===
+feasible cell-seeds: 20/20
+infeasible: none
+repeated tumour-rich source arrangements (cell, seed, repeats seed): [('c17_3to0', 5, 1)]
+identical full source splits: none
+repeated source test patients: [('c17_1to4', 3, 1), ('c17_1to4', 4, 2), ('c17_0to3', 5, 1)]
+identical target splits: none
