@@ -15,10 +15,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 
 import numpy as np
+import pandas as pd
 import torch
 from scipy.special import softmax
 
@@ -50,20 +52,36 @@ def main(a):
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("device:", dev, "| run folder:", run)
 
-    X, man = load_compact(os.path.join(a.data, "pcam_compact.h5"),
-                          os.path.join(a.data, "pcam_compact_manifest.csv"))
-    split = make_split(slide_table(man), a.setting, a.seed)
-    split.to_csv(os.path.join(run, "split.csv"), index=False)
-    print(summarise(split))
+    X, man = load_compact(os.path.join(a.data, f"{a.data_prefix}.h5"),
+                          os.path.join(a.data, f"{a.data_prefix}_manifest.csv"))
+    if a.setting.startswith("c17"):  # Addendum 5: patient-level split prepared by c17_prepare.py
+        sp = np.load(os.path.join(a.splits, f"{a.setting}_seed{a.seed}.npz"))
+        info = json.load(open(os.path.join(a.splits, f"{a.setting}_seed{a.seed}.json")))
+        tr, es, vt, S, G = sp["train"], sp["val_es"], sp["val_temp"], sp["S"], sp["G"]
+        src_c, tgt_c = info["cell"].split("_")[1].split("to")
+        slides_ = man[["wsi", "patient", "hospital"]].drop_duplicates()
+        rows = []
+        for w, p_, h in slides_.values:
+            if h == f"c{src_c}" and str(p_) in info["src_roles"]:
+                rows.append({"wsi": w, "patient": p_, "domain": "source", "role": info["src_roles"][str(p_)]})
+            elif h == f"c{tgt_c}" and str(p_) in info["tgt_roles"]:
+                rows.append({"wsi": w, "patient": p_, "domain": "target", "role": info["tgt_roles"][str(p_)]})
+        split = pd.DataFrame(rows)
+        split.to_csv(os.path.join(run, "split.csv"), index=False)
+        print(split.groupby(["domain", "role"]).patient.unique().to_string())
+    else:
+        split = make_split(slide_table(man), a.setting, a.seed)
+        split.to_csv(os.path.join(run, "split.csv"), index=False)
+        print(summarise(split))
 
-    def slides(domain, role):
-        return split[(split.domain == domain) & (split.role == role)].wsi
+        def slides(domain, role):
+            return split[(split.domain == domain) & (split.role == role)].wsi
 
-    tr = indices_for(man, slides("source", "train"))
-    es = indices_for(man, slides("source", "val_es"))
-    vt = indices_for(man, slides("source", "val_temp"))
-    S = eval_sample(man, slides("source", "test"), n=a.n_eval, seed=a.seed)
-    G = eval_sample(man, slides("target", "test"), n=a.n_eval, seed=a.seed)
+        tr = indices_for(man, slides("source", "train"))
+        es = indices_for(man, slides("source", "val_es"))
+        vt = indices_for(man, slides("source", "val_temp"))
+        S = eval_sample(man, slides("source", "test"), n=a.n_eval, seed=a.seed)
+        G = eval_sample(man, slides("target", "test"), n=a.n_eval, seed=a.seed)
     np.savez(os.path.join(run, "eval_idx.npz"), S=S, G=G)
     if a.max_train:
         tr = np.random.default_rng(a.seed).choice(tr, min(a.max_train, len(tr)), replace=False)
@@ -75,12 +93,14 @@ def main(a):
                        make_loader(X, y, tr, train=True, batch=a.batch, workers=a.workers, seed=a.seed,
                                    colour=a.colour),
                        make_loader(X, y, es, train=False, batch=256, workers=a.workers),
-                       dev, lr=a.lr, max_epochs=a.epochs, patience=a.patience)
+                       dev, lr=a.lr, max_epochs=a.epochs, patience=a.patience,
+                       log=(lambda m: print(re.sub(r"\d+\.\d+", "#", m))) if a.blind else print)
     torch.save(model.state_dict(), os.path.join(run, "source.pt"))
 
     z_vt, y_vt = predict(model, make_loader(X, y, vt, train=False, batch=256, workers=a.workers), dev)
     T0 = fit_temperature(z_vt, y_vt)
-    print(f"temperature T0 = {T0:.3f}")
+    if not a.blind:
+        print(f"temperature T0 = {T0:.3f}")
 
     out = {"setting": a.setting, "seed": a.seed, "model": a.model, "colour": a.colour, "T0": T0, **res}
     for name, idx in [("S_source_test", S), ("G_target_test", G)]:
@@ -91,9 +111,16 @@ def main(a):
     out["G4_brier_gap"] = gap
     out["G4_pass"] = bool(gap >= SESOI)
     out["minutes"] = (time.time() - t_start) / 60
+    out["gpu"] = torch.cuda.get_device_name(0) if dev.type == "cuda" else "cpu"
+    out["peak_gpu_mem_gb"] = torch.cuda.max_memory_allocated() / 1e9 if dev.type == "cuda" else 0.0
+    out["n_train"], out["n_val_es"], out["n_val_temp"] = int(len(tr)), int(len(es)), int(len(vt))
     with open(os.path.join(run, "summary.json"), "w") as f:
         json.dump(out, f, indent=2)
 
+    if a.blind:  # Addendum 5: no performance numbers are shown before all runs are complete
+        print(f"source model saved (blind mode: metrics written to summary.json, not shown) | "
+              f"{out['gpu']} | peak GPU memory {out['peak_gpu_mem_gb']:.2f} GB | total time {out['minutes']:.1f} min")
+        return
     print("\n=== results (temperature-scaled) ===")
     for name in ["S_source_test", "G_target_test"]:
         r = out[name]
@@ -105,7 +132,11 @@ def main(a):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--setting", default="pcam_fwd", choices=["pcam_fwd", "pcam_rev"])
+    p.add_argument("--setting", default="pcam_fwd",
+                   choices=["pcam_fwd", "pcam_rev", "c17_1to4", "c17_0to3", "c17_4to1", "c17_3to0"])
+    p.add_argument("--data_prefix", default="pcam_compact", help="c17_compact for the Camelyon17 replication")
+    p.add_argument("--splits", default="", help="folder written by scripts/c17_prepare.py (c17 settings only)")
+    p.add_argument("--blind", action="store_true", help="print no performance numbers (Addendum 5)")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--model", default="resnet18", choices=["resnet18", "vit_s16"])
     p.add_argument("--data", default="/content/data")

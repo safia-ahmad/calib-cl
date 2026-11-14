@@ -25,6 +25,24 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TEST_SOURCE = ["--epochs", "1", "--patience", "1", "--batch", "32", "--n_eval", "40", "--no_pretrained"]
 TEST_STREAM = ["--n_buffer", "40", "--buffer", "20", "--batch", "8"]
 STREAM_RUNS = ["frozen_gradual", "ft_gradual", "ft_nodrift", "replay_gradual", "replay_nodrift"]
+BN_RUNS = ["ft_gradual_bnfrozen", "ft_nodrift_bnfrozen"]  # Addendum 5, frozen-BatchNorm control
+
+
+def stream_runs(a):
+    return BN_RUNS if a.bn_control else STREAM_RUNS
+
+
+def extra_source(a):
+    x = ["--data_prefix", a.data_prefix]
+    x += ["--splits", a.splits] if a.splits else []
+    return x + (["--blind"] if a.blind else [])
+
+
+def extra_stream(a):
+    x = ["--data_prefix", a.data_prefix] + (["--blind"] if a.blind else [])
+    if a.bn_control:
+        x += ["--strategies", "ft", "--kinds", "gradual,nodrift", "--freeze_bn", "--tag", "bnfrozen"]
+    return x
 
 
 def jobs(a):
@@ -44,10 +62,10 @@ def stream_done(a, model, setting, seed, name):
 
 def status(a):
     n_tot = n_done = 0
-    print(f"{'model':9s} {'setting':9s} seed  source  " + "  ".join(f"{s:>14s}" for s in STREAM_RUNS))
+    print(f"{'model':9s} {'setting':9s} seed  source  " + "  ".join(f"{s:>14s}" for s in stream_runs(a)))
     for model, setting, seed in jobs(a):
         src = source_done(a, model, setting, seed)
-        st = [stream_done(a, model, setting, seed, s) for s in STREAM_RUNS]
+        st = [stream_done(a, model, setting, seed, s) for s in stream_runs(a)]
         n_tot += 1 + len(st)
         n_done += src + sum(st)
         print(f"{model:9s} {setting:9s} {seed:4d}  {'done' if src else '-':6s}  " +
@@ -73,18 +91,18 @@ def main(a):
             log(a, f"START source model  {tag}")
             r = subprocess.run([sys.executable, os.path.join(HERE, "train_source.py"), "--setting", setting,
                                 "--seed", str(seed), "--model", model, "--data", a.data, "--out", a.models,
-                                "--workers", str(a.workers)] + (TEST_SOURCE if a.test_mode else []))
+                                "--workers", str(a.workers)] + extra_source(a) + (TEST_SOURCE if a.test_mode else []))
             if r.returncode != 0:
                 log(a, f"FAILED source model {tag}: skipping its streams")
                 continue
             log(a, f"done   source model  {tag}")
-        if all(stream_done(a, model, setting, seed, s) for s in STREAM_RUNS):
+        if all(stream_done(a, model, setting, seed, s) for s in stream_runs(a)):
             continue
         log(a, f"START stream runs   {tag}")
         r = subprocess.run([sys.executable, os.path.join(HERE, "run_stream.py"), "--setting", setting,
                             "--seed", str(seed), "--model", model, "--data", a.data, "--runs", a.models,
                             "--streams", a.streams, "--out", a.out, "--lr", str(a.lr),
-                            "--workers", str(a.workers)] + (TEST_STREAM if a.test_mode else []))
+                            "--workers", str(a.workers)] + extra_stream(a) + (TEST_STREAM if a.test_mode else []))
         log(a, f"{'done  ' if r.returncode == 0 else 'FAILED'} stream runs   {tag}")
     status(a)
 
@@ -102,5 +120,10 @@ if __name__ == "__main__":
     p.add_argument("--last_seed", type=int, default=5)
     p.add_argument("--workers", type=int, default=2)
     p.add_argument("--status", action="store_true")
+    p.add_argument("--data_prefix", default="pcam_compact", help="c17_compact for the Camelyon17 replication")
+    p.add_argument("--splits", default="", help="c17 split folder (scripts/c17_prepare.py)")
+    p.add_argument("--blind", action="store_true", help="print no performance numbers (Addendum 5)")
+    p.add_argument("--bn_control", action="store_true",
+                   help="run only the frozen-BatchNorm control (FT gradual + twin, --freeze_bn, tag bnfrozen)")
     p.add_argument("--test_mode", action="store_true", help="tiny settings for the automated test only")
     main(p.parse_args())

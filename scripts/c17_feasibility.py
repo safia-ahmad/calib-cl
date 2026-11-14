@@ -62,7 +62,7 @@ def run(meta, load, out, seeds=range(1, 6), n_unit_pairs=40):
         seen, seen_full, seen_stest, seen_tgt = {}, {}, {}, {}
         for r in C.plan_cell_seeds(capped, cell, seeds, P):
             seed = r["seed"]
-            full.append(r)
+            full.append({k: v for k, v in r.items() if k not in ("val_labels", "S_idx", "G_idx")})
             if not r["feasible"]:
                 say(f"  seed {seed}: INFEASIBLE  src {r['src_info']}  tgt {r['tgt_info']}")
                 rows.append({"cell": cell, "seed": seed, "feasible": False})

@@ -42,12 +42,15 @@ def run_one(a, X, man, run_dir, strategy, kind, dev):
     T0 = s["T0"]
     ev = np.load(os.path.join(run_dir, "eval_idx.npz"))
     split = pd.read_csv(os.path.join(run_dir, "split.csv"))
-    B = eval_sample(man, split[(split.domain == "source") & (split.role == "val_buf")].wsi,
-                    n=a.n_buffer, seed=a.seed)
     windows = np.load(os.path.join(a.streams, f"{a.setting}_seed{a.seed}.npz"))[kind]
-    sets = {"S": ev["S"], "G": ev["G"], "B": B}
+    sets = {"S": ev["S"], "G": ev["G"]}
+    buf_slides = split[(split.domain == "source") & (split.role == "val_buf")].wsi
+    if len(buf_slides):  # the Camelyon17 replication has no buffer set B (Addendum 5, Section 5.3)
+        sets["B"] = eval_sample(man, buf_slides, n=a.n_buffer, seed=a.seed)
     y_all, wsi = man.label.to_numpy(), man.wsi.to_numpy()
 
+    if dev.type == "cuda":
+        torch.cuda.reset_peak_memory_stats()
     seed_everything(1000 + a.seed)
     rng = np.random.default_rng(1000 + a.seed)
     model = make_model(a.model, pretrained=False)
@@ -80,6 +83,9 @@ def run_one(a, X, man, run_dir, strategy, kind, dev):
                                 freeze_bn=a.freeze_bn)
             rows[-1]["train_loss_next"] = loss
         last = {r_["set"]: r_ for r_ in rows if r_["checkpoint"] == c}
+        if a.blind:  # Addendum 5: no performance numbers before all runs are complete
+            print(f"  c={c:2d} done ({(time.time() - t_start) / 60:.1f} min)", flush=True)
+            continue
         print(f"  c={c:2d} | S brier {last['S']['brier']:.4f} mcb {last['S']['mcb']:.4f} "
               f"dsc {last['S']['dsc']:.4f} | G brier {last['G']['brier']:.4f} auroc {last['G']['auroc']:.3f}",
               flush=True)
@@ -88,6 +94,8 @@ def run_one(a, X, man, run_dir, strategy, kind, dev):
                         **{f"idx_{k}": v for k, v in sets.items()}, **logits)
     meta = {"T0": T0, "lr": a.lr, "batch": a.batch, "freeze_bn": a.freeze_bn, "buffer": a.buffer if buffer else 0,
             "colour": a.colour, "minutes": (time.time() - t_start) / 60,
+            "gpu": torch.cuda.get_device_name(0) if dev.type == "cuda" else "cpu",
+            "peak_gpu_mem_gb": torch.cuda.max_memory_allocated() / 1e9 if dev.type == "cuda" else 0.0,
             "buffer_items": len(buffer.items) if buffer else 0, **stats}
     json.dump(meta, open(os.path.join(out_dir, "meta.json"), "w"), indent=2)
     return meta
@@ -104,8 +112,8 @@ def make_deterministic():
 def main(a):
     make_deterministic()
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    X, man = load_compact(os.path.join(a.data, "pcam_compact.h5"),
-                          os.path.join(a.data, "pcam_compact_manifest.csv"))
+    X, man = load_compact(os.path.join(a.data, f"{a.data_prefix}.h5"),
+                          os.path.join(a.data, f"{a.data_prefix}_manifest.csv"))
     run_dir = os.path.join(a.runs, f"{a.setting}_{a.model}_seed{a.seed}")
     for strategy in a.strategies.split(","):
         for kind in a.kinds.split(","):
@@ -122,7 +130,10 @@ def main(a):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--setting", default="pcam_fwd", choices=["pcam_fwd", "pcam_rev"])
+    p.add_argument("--setting", default="pcam_fwd",
+                   choices=["pcam_fwd", "pcam_rev", "c17_1to4", "c17_0to3", "c17_4to1", "c17_3to0"])
+    p.add_argument("--data_prefix", default="pcam_compact", help="c17_compact for the Camelyon17 replication")
+    p.add_argument("--blind", action="store_true", help="print no performance numbers (Addendum 5)")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--model", default="resnet18", choices=["resnet18", "vit_s16"])
     p.add_argument("--data", default="/content/data")
