@@ -536,17 +536,31 @@ The pilot runs are part of the final dataset and are not repeated.
 
 **Later deviations:** each entry gives the date, the change and the reason.
 
-1. **15 November 2026: in-sample CORP added as a declared sensitivity analysis.**
-   - **Status when added:** all source models and stream runs had finished in blind mode, and no
-     performance result had been seen by anyone.
-   - **Reason:** in many cell-seeds the source test set S comes from only 2 slides, so the
-     2-fold cross-fitted recalibration is fitted on one slide (one patient) and applied to the
-     other, which can make MCB noisy.
+1. **15 November 2026: in-sample CORP added as a secondary, exploratory sensitivity analysis**
+   (approved by the author on 15 November 2026).
+   - **Status when added:** all 20 source models, 100 standard stream runs and 40
+     frozen-BatchNorm runs had finished in blind mode. No performance result had been seen by
+     anyone, and the analysis script had not been run.
+   - **Reason:** the source test set S contains few slides: 2 slides in 12 of the 20 cell-seeds, and at
+     most 4 in any.
+     The primary decomposition is cross-fitted over 2 slide folds, so when S has only 2 slides
+     each fold is a single slide from a single patient. The recalibration map applied to one
+     patient's slide is then fitted on the other patient's slide alone. This can make the MCB
+     and DSC estimates sensitive to the particular pair of slides rather than to the model.
    - **Change:** the decomposition on S is also computed in-sample (`corp_insample`, no
-     cross-fitting), with the same Fieller interval and the same cell-status rules.
-   - **Use:** reported as a labelled sensitivity analysis only. The primary analysis, R1–R3, the
-     cell statuses and the overall verdict are unchanged and use the cross-fitted decomposition
-     as committed.
+     cross-fitting). It uses the same drift-attributable estimand, the same Fieller interval and
+     the same status rules, and is reported per seed and per cell.
+   - **Known bias:** the in-sample estimate may be optimistic. The isotonic recalibration is
+     fitted and evaluated on the same observations, so the recalibrated Brier score is
+     understated, which overstates both MCB and DSC, more so in small sets. It is therefore secondary.
+   - **What stays primary:** the cross-fitted decomposition remains the primary analysis. R1, R2,
+     R3, the cell statuses, the overall verdict and every other decision criterion are computed
+     from it alone and are unchanged by this amendment.
+   - **What the in-sample result cannot do:** it cannot replace, override or modify any primary
+     result.
+   - **How it is reported:** both results are reported side by side, with an explicit statement
+     of every cell where the two disagree (in status, or in which side of ρ = 0.25 the point
+     estimate falls).
 2. **15 November 2026: compute fallback not used.** The pilot measured 2.3 min per source model
    and 0.4–0.7 min per stream run on a T4 GPU, so the full plan ran as committed: 20 source
    models, 100 stream runs and 40 frozen-BatchNorm runs.
