@@ -534,4 +534,19 @@ The pilot runs are part of the final dataset and are not repeated.
 | Hospital pair | RUMC/UMCU | pairs chosen by the RGB rule |
 | Frozen-BN control | added after the results (Addenda 4 and 4b) | planned in advance |
 
-**Later deviations:** none yet. Each entry will give the date, the change and the reason.
+**Later deviations:** each entry gives the date, the change and the reason.
+
+1. **15 November 2026: in-sample CORP added as a declared sensitivity analysis.**
+   - **Status when added:** all source models and stream runs had finished in blind mode, and no
+     performance result had been seen by anyone.
+   - **Reason:** in many cell-seeds the source test set S comes from only 2 slides, so the
+     2-fold cross-fitted recalibration is fitted on one slide (one patient) and applied to the
+     other, which can make MCB noisy.
+   - **Change:** the decomposition on S is also computed in-sample (`corp_insample`, no
+     cross-fitting), with the same Fieller interval and the same cell-status rules.
+   - **Use:** reported as a labelled sensitivity analysis only. The primary analysis, R1–R3, the
+     cell statuses and the overall verdict are unchanged and use the cross-fitted decomposition
+     as committed.
+2. **15 November 2026: compute fallback not used.** The pilot measured 2.3 min per source model
+   and 0.4–0.7 min per stream run on a T4 GPU, so the full plan ran as committed: 20 source
+   models, 100 stream runs and 40 frozen-BatchNorm runs.
