@@ -94,10 +94,12 @@ def _fake_c17(folder, splits, streams):
     tr = rows_of(20)
     sp = {"train": tr[:30], "val_es": tr[30:35], "val_temp": tr[35:], "S": rows_of(22), "G": rows_of(96),
           "src_stream": rows_of(21), "tgt_stream": rows_of(92)}
-    np.savez(os.path.join(splits, "c17_1to4_seed1.npz"), **sp)
-    json.dump({"cell": "c17_1to4", "seed": 1, "src_roles": {"20": "train", "21": "stream", "22": "test"},
-               "tgt_roles": {"92": "stream", "96": "test"}}, open(os.path.join(splits, "c17_1to4_seed1.json"), "w"))
-    np.savez(os.path.join(streams, "c17_1to4_seed1.npz"), **P_.streams_for(man, sp["src_stream"], sp["tgt_stream"], 1, T=3, n=12))
+    for seed in (1, 2, 3):
+        np.savez(os.path.join(splits, f"c17_1to4_seed{seed}.npz"), **sp)
+        json.dump({"cell": "c17_1to4", "seed": seed, "src_roles": {"20": "train", "21": "stream", "22": "test"},
+                   "tgt_roles": {"92": "stream", "96": "test"}}, open(os.path.join(splits, f"c17_1to4_seed{seed}.json"), "w"))
+        np.savez(os.path.join(streams, f"c17_1to4_seed{seed}.npz"),
+                 **P_.streams_for(man, sp["src_stream"], sp["tgt_stream"], seed, T=3, n=8))
 
 
 def test_c17_run_all_blind_bn_and_pilot(tmp_path):
@@ -108,10 +110,10 @@ def test_c17_run_all_blind_bn_and_pilot(tmp_path):
     _fake_c17(str(data), str(splits), str(streams))
     base = [sys.executable, os.path.join(ROOT, "scripts", "run_all.py"), "--data", str(data), "--models", str(models),
             "--streams", str(streams), "--out", str(out), "--lr", "0.001", "--model_list", "resnet18",
-            "--settings", "c17_1to4", "--first_seed", "1", "--last_seed", "1", "--workers", "0", "--test_mode",
+            "--settings", "c17_1to4", "--first_seed", "1", "--last_seed", "3", "--workers", "0", "--test_mode",
             "--data_prefix", "c17_compact", "--splits", str(splits), "--blind"]
     r = subprocess.run(base, capture_output=True, text=True, timeout=900)
-    assert r.returncode == 0 and "6 of 6 jobs done" in r.stdout, r.stdout + r.stderr
+    assert r.returncode == 0 and "18 of 18 jobs done" in r.stdout, r.stdout + r.stderr
     log = (out / "progress_log.txt").read_text()
     assert "FAILED" not in log
     # blind: no metric names printed by the child processes (their output goes to the console)
@@ -119,10 +121,16 @@ def test_c17_run_all_blind_bn_and_pilot(tmp_path):
     split = pd.read_csv(models / "c17_1to4_resnet18_seed1" / "split.csv")
     assert set(split.role) == {"train", "stream", "test"} and set(split.domain) == {"source", "target"}
     r = subprocess.run(base + ["--bn_control"], capture_output=True, text=True, timeout=900)
-    assert r.returncode == 0 and "3 of 3 jobs done" in r.stdout, r.stdout + r.stderr
+    assert r.returncode == 0 and "9 of 9 jobs done" in r.stdout, r.stdout + r.stderr
     meta = json.load(open(out / "c17_1to4_resnet18_seed1" / "stream_ft_gradual_bnfrozen" / "meta.json"))
     assert meta["freeze_bn"] is True and "gpu" in meta
     rep = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "c17_pilot_report.py"), "--models", str(models),
                           "--out", str(out), "--streams", str(streams)], capture_output=True, text=True, timeout=300)
     assert rep.returncode == 0 and "Integrity: OK" in rep.stdout, rep.stdout + rep.stderr
     assert "auroc" not in rep.stdout.lower() and "brier" not in rep.stdout.lower()
+    an = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "c17_analysis.py"), "--data", str(data),
+                         "--models", str(models), "--out", str(out), "--splits", str(splits), "--cells", "c17_1to4",
+                         "--primary", "c17_1to4", "--seeds", "1,2,3", "--insample_sensitivity"],
+                        capture_output=True, text=True, timeout=600)
+    assert an.returncode == 0, an.stdout + an.stderr
+    assert "OVERALL VERDICT" in an.stdout and (out / "analysis_c17" / "report.txt").exists()
