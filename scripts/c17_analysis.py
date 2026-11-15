@@ -68,6 +68,41 @@ def drift(a, cell, seed, strat, tag=""):
             "start_brier": g["brier"][0], "twin_change": ch(n, "brier")}
 
 
+def check_inventory(a, lab):
+    """Every expected source model and stream run, complete and as specified. Returns a list of problems."""
+    problems = []
+    for c in CELLS:
+        for s in SEEDS:
+            src = os.path.join(a.models, f"{c}_resnet18_seed{s}")
+            for f in ("summary.json", "source.pt", "eval_idx.npz"):
+                if not os.path.exists(os.path.join(src, f)):
+                    problems.append(f"source model {c} seed {s}: missing {f}")
+            for r in RUNS:
+                d = os.path.join(rdir(a, c, s), f"stream_{r}")
+                need = [f for f in ("metrics.csv", "logits.npz", "meta.json") if not os.path.exists(os.path.join(d, f))]
+                if need:
+                    problems.append(f"{c} seed {s} {r}: missing {', '.join(need)}")
+                    continue
+                m = pd.read_csv(os.path.join(d, "metrics.csv"))
+                sm = m[m.set == "S"]
+                n_ck = sm.checkpoint.nunique()
+                if n_ck != a.checkpoints:
+                    problems.append(f"{c} seed {s} {r}: {n_ck} checkpoints, expected {a.checkpoints}")
+                if not np.isfinite(sm[["brier", "mcb", "dsc"]].to_numpy(float)).all():
+                    problems.append(f"{c} seed {s} {r}: non-finite S metrics")
+                meta = json.load(open(os.path.join(d, "meta.json")))
+                if bool(meta.get("freeze_bn", False)) != r.endswith("_bnfrozen"):
+                    problems.append(f"{c} seed {s} {r}: freeze_bn flag is {meta.get('freeze_bn')}")
+                if not r.startswith("frozen") and abs(float(meta.get("lr", -1)) - 0.001) > 1e-12:
+                    problems.append(f"{c} seed {s} {r}: lr {meta.get('lr')}, expected 0.001")
+                lg = np.load(os.path.join(d, "logits.npz"))
+                if "idx_B" in lg.files:
+                    problems.append(f"{c} seed {s} {r}: unexpected buffer set B")
+                if sum(k.startswith("S_c") for k in lg.files) != a.checkpoints:
+                    problems.append(f"{c} seed {s} {r}: logits saved for the wrong number of checkpoints")
+    return problems
+
+
 def probs(z, T0):
     return softmax(np.asarray(z, np.float64) / T0, axis=1)[:, 1]
 
@@ -84,13 +119,25 @@ def main(a):
     man = pd.read_csv(os.path.join(a.data, "c17_compact_manifest.csv"))
     lab, pat, wsi = man.label.to_numpy(), man.patient.to_numpy(), man.wsi.to_numpy()
     od = os.path.join(a.out, "analysis_c17")
+    if os.path.exists(os.path.join(od, "report.txt")) and not a.allow_rerun:
+        sys.exit(f"{od}/report.txt already exists: the pre-specified analysis has been run once already. "
+                 "Not running again (Addendum 5). Use --allow_rerun only to reproduce it, and say so in the paper.")
     os.makedirs(od, exist_ok=True)
 
-    # ---------------- 1. integrity ----------------
-    R("=== 1. Integrity ===")
-    missing = [(c, s, r) for c in CELLS for s in SEEDS for r in RUNS
-               if not os.path.exists(os.path.join(rdir(a, c, s), f"stream_{r}", "metrics.csv"))]
-    assert not missing, f"missing runs: {missing[:10]}"
+    # ---------------- 1. inventory and integrity ----------------
+    R("=== 1. Inventory and integrity ===")
+    R("Primary decomposition: cross-fitted CORP over 2 slide folds (saved metrics.csv). All criteria use it.")
+    problems = check_inventory(a, lab)
+    n_src, n_std, n_bn = len(CELLS) * len(SEEDS), len(CELLS) * len(SEEDS) * 5, len(CELLS) * len(SEEDS) * 2
+    if problems:
+        R(f"INVENTORY FAILED ({len(problems)} problems). No result is computed:")
+        for p_ in problems:
+            R(f"  - {p_}")
+        open(os.path.join(od, "inventory_failed.txt"), "w").write("\n".join(R.lines))
+        sys.exit(1)
+    R(f"expected and found: {n_src} source models, {n_std} standard stream runs, {n_bn} frozen-BatchNorm runs "
+      f"({n_std + n_bn} stream runs in total); every run complete (11 checkpoints, finite S metrics and logits, "
+      "correct freeze_bn flag and learning rate)")
     worst_recompute, worst_frozen = 0.0, 0.0
     T0 = {}
     for c in CELLS:
@@ -106,7 +153,6 @@ def main(a):
                     re_ = corp_crossfit(probs(lg[f"S_c{ck}"], T0[(c, s)]), lab[idx], wsi[idx])["brier"]
                     saved = float(m[(m.set == "S") & (m.checkpoint == ck)].brier.iloc[0])
                     worst_recompute = max(worst_recompute, abs(re_ - saved))
-    R(f"all {len(CELLS) * len(SEEDS) * len(RUNS)} stream runs present")
     R(f"frozen model: largest change in S Brier over the stream = {worst_frozen:.2e} (should be ~0)")
     R(f"S Brier recomputed from saved logits vs saved metrics: largest difference {worst_recompute:.2e} "
       "(float16 logits; should be < 1e-3)")
@@ -148,7 +194,9 @@ def main(a):
                           "DSC_lost": res["DSC_lost"], "rho": res["rho"], "fieller_lo": lo, "fieller_hi": hi,
                           "fieller_kind": kind, "boot_lo": blo, "boot_hi": bhi, "boot_nonpos_share": share})
     verdict = St.overall_verdict([status[c] for c in PRIMARY])
-    R(f"\nOVERALL VERDICT (primary cells {', '.join(PRIMARY)}): {verdict.upper()}")
+    R(f"\nOVERALL VERDICT (primary cells {', '.join(PRIMARY)}; cross-fitted, primary analysis): {verdict.upper()}")
+    pd.DataFrame(seed_rows).to_csv(os.path.join(od, "seeds.csv"), index=False)
+    pd.DataFrame(cell_rows).to_csv(os.path.join(od, "cells.csv"), index=False)
 
     # ---------------- 3. descriptive ----------------
     R("\n=== 3. Descriptive (uncorrected) ===")
@@ -210,7 +258,11 @@ def main(a):
 
     # ---------------- 5. optional declared sensitivity ----------------
     if a.insample_sensitivity:
-        R("\n=== 5. Declared sensitivity: in-sample CORP on S (no cross-fitting) ===")
+        R("\n=== 5. Secondary, exploratory sensitivity: in-sample CORP on S (Addendum 5, Section 12, entry 1) ===")
+        R("Fitted and evaluated on the same patches, so it may be optimistic. It does not change any criterion, "
+          "status or the verdict above.")
+        ins_seed, ins_cell = [], []
+        prim = {r_["cell"]: r_ for r_ in cell_rows}
         for c in CELLS:
             rows = []
             for s in SEEDS:
@@ -224,14 +276,26 @@ def main(a):
                 rows.append({"d_brier": ch("gradual", "brier") - ch("nodrift", "brier"),
                              "d_mcb": ch("gradual", "mcb") - ch("nodrift", "mcb"),
                              "dsc_lost": -(ch("gradual", "dsc") - ch("nodrift", "dsc"))})
+                ins_seed.append({"cell": c, "seed": s, **rows[-1]})
             arr = {k: np.array([x[k] for x in rows]) for k in rows[0]}
             res = St.cell_criteria(arr)
             lo, hi, kind = res["fieller"]
+            pr = prim[c]
+            side = lambda r_: ("n/a" if not np.isfinite(r_) else ">= 0.25" if r_ >= 0.25 else "< 0.25")  # noqa: E731
+            agree = (res["status"] == pr["status"]) and (side(res["rho"]) == side(pr["rho"]))
             R(f"  {c}: dMCB {fmt(res['dMCB'])}, DSC lost {fmt(res['DSC_lost'])}, rho {res['rho']:+.3f}, "
               f"Fieller {'[' + f'{lo:+.3f}, {hi:+.3f}' + ']' if kind == 'bounded' else 'unbounded'} -> status {res['status']}")
+            R(f"     primary (cross-fitted): rho {pr['rho']:+.3f}, status {pr['status']} -> "
+              + ("AGREE" if agree else f"DISAGREE (status {pr['status']} vs {res['status']}; rho {side(pr['rho'])} vs {side(res['rho'])})"))
+            ins_cell.append({"cell": c, "status_insample": res["status"], "status_primary": pr["status"],
+                             "rho_insample": res["rho"], "rho_primary": pr["rho"], "fieller_lo": lo, "fieller_hi": hi,
+                             "dMCB": res["dMCB"], "DSC_lost": res["DSC_lost"], "agree": agree})
+        pd.DataFrame(ins_seed).to_csv(os.path.join(od, "insample_seeds.csv"), index=False)
+        pd.DataFrame(ins_cell).to_csv(os.path.join(od, "insample_cells.csv"), index=False)
+        dis = [x["cell"] for x in ins_cell if not x["agree"]]
+        R(f"  disagreement between in-sample and primary: {', '.join(dis) if dis else 'none'} "
+          "(the primary result stands in every case)")
 
-    pd.DataFrame(seed_rows).to_csv(os.path.join(od, "seeds.csv"), index=False)
-    pd.DataFrame(cell_rows).to_csv(os.path.join(od, "cells.csv"), index=False)
     open(os.path.join(od, "report.txt"), "w").write("\n".join(R.lines))
     R(f"\nSaved in {od}")
 
@@ -245,6 +309,8 @@ if __name__ == "__main__":
     p.add_argument("--cells", default=",".join(CELLS), help="leave at the default (Addendum 5); for tests only")
     p.add_argument("--primary", default=",".join(PRIMARY), help="leave at the default (Addendum 5); for tests only")
     p.add_argument("--seeds", default=",".join(map(str, SEEDS)), help="leave at the default (Addendum 5); for tests only")
+    p.add_argument("--checkpoints", type=int, default=11, help="checkpoints per run (10 windows + start)")
+    p.add_argument("--allow_rerun", action="store_true", help="reproduce an analysis already run once")
     p.add_argument("--insample_sensitivity", action="store_true",
                    help="only if declared in Addendum 5, Section 12, before this script is run")
     main(p.parse_args())
