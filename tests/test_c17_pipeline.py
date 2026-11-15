@@ -130,7 +130,23 @@ def test_c17_run_all_blind_bn_and_pilot(tmp_path):
     assert "auroc" not in rep.stdout.lower() and "brier" not in rep.stdout.lower()
     an = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "c17_analysis.py"), "--data", str(data),
                          "--models", str(models), "--out", str(out), "--splits", str(splits), "--cells", "c17_1to4",
-                         "--primary", "c17_1to4", "--seeds", "1,2,3", "--insample_sensitivity"],
+                         "--primary", "c17_1to4", "--seeds", "1,2,3", "--insample_sensitivity", "--checkpoints", "4"],
                         capture_output=True, text=True, timeout=600)
     assert an.returncode == 0, an.stdout + an.stderr
     assert "OVERALL VERDICT" in an.stdout and (out / "analysis_c17" / "report.txt").exists()
+    assert "AGREE" in an.stdout and (out / "analysis_c17" / "insample_cells.csv").exists()
+    for f in ("seeds.csv", "cells.csv", "bn_control.csv", "per_patient.csv", "source_auroc.csv", "insample_seeds.csv"):
+        assert (out / "analysis_c17" / f).exists(), f
+    again = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "c17_analysis.py"), "--data", str(data),
+                            "--models", str(models), "--out", str(out), "--splits", str(splits), "--cells", "c17_1to4",
+                            "--primary", "c17_1to4", "--seeds", "1,2,3", "--checkpoints", "4"],
+                           capture_output=True, text=True, timeout=600)
+    assert again.returncode != 0 and "already" in (again.stdout + again.stderr)   # runs once only
+    # a missing run makes the analysis stop with a listed problem, never a silent omission
+    os.remove(out / "c17_1to4_resnet18_seed2" / "stream_replay_nodrift" / "metrics.csv")
+    os.remove(out / "analysis_c17" / "report.txt")
+    miss = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "c17_analysis.py"), "--data", str(data),
+                           "--models", str(models), "--out", str(out), "--splits", str(splits), "--cells", "c17_1to4",
+                           "--primary", "c17_1to4", "--seeds", "1,2,3", "--checkpoints", "4"],
+                          capture_output=True, text=True, timeout=600)
+    assert miss.returncode != 0 and "INVENTORY FAILED" in miss.stdout and "replay_nodrift" in miss.stdout
